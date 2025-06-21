@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from fastapi.responses import JSONResponse
 from bson import ObjectId
 from bson.errors import InvalidId
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 from backend.auth import current_active_user
@@ -69,7 +70,7 @@ async def create_session(
     request: Request,
     session_data: SessionCreate,
     current_user: User = Depends(current_active_user),
-    db = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Create a new session for the authenticated user.
@@ -158,7 +159,7 @@ async def answer_question(
     session_id: str,
     answer_data: AnswerRequest,
     current_user: User = Depends(current_active_user),
-    db = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Submit an answer to continue the Q&A loop.
@@ -220,20 +221,24 @@ async def answer_question(
                 )
                 
                 if should_stop:
-                    # Update session status and return
+                    # Update session status and commit before returning error
                     if stop_reason == "cancelled":
                         await update_session_status(db, db_session, session_object_id, "cancelled")
+                        await db_session.commit_transaction()
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Session cancelled by user request"
                         )
                     elif stop_reason == "max_questions_reached":
                         await update_session_status(db, db_session, session_object_id, "completed")
+                        await db_session.commit_transaction()
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Maximum questions limit reached"
                         )
                     else:
+                        # For other stop reasons, don't update status but commit transaction
+                        await db_session.commit_transaction()
                         raise HTTPException(
                             status_code=status.HTTP_400_BAD_REQUEST,
                             detail=f"Session cannot continue: {stop_reason}"
@@ -356,7 +361,7 @@ async def get_session(
     request: Request,
     session_id: str,
     current_user: User = Depends(current_active_user),
-    db = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
     Retrieve a session by its ID.
@@ -413,7 +418,7 @@ async def get_session(
 async def list_sessions(
     request: Request,
     current_user: User = Depends(current_active_user),
-    db = Depends(get_database),
+    db: AsyncIOMotorDatabase = Depends(get_database),
     limit: int = Query(default=50, ge=1, le=100, description="Maximum number of sessions to return"),
     skip: int = Query(default=0, ge=0, description="Number of sessions to skip for pagination")
 ):

@@ -26,6 +26,7 @@ class User(BaseModel):
     """
     id: str = Field(alias="_id")
     email: EmailStr
+    username: str
     hashed_password: str
     is_active: bool = True
     is_superuser: bool = False
@@ -45,6 +46,7 @@ class User(BaseModel):
 
 class UserRead(schemas.BaseUser[str]):
     """User schema for reading user data"""
+    username: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -53,12 +55,14 @@ class UserRead(schemas.BaseUser[str]):
 
 class UserCreate(schemas.BaseUserCreate):
     """User schema for creating new users"""
+    username: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
 
 
 class UserUpdate(schemas.BaseUserUpdate):
     """User schema for updating user data"""
+    username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     avatar_url: Optional[str] = None

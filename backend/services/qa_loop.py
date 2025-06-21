@@ -139,7 +139,8 @@ async def build_context_chain(
         node_id: Starting node ObjectId
         
     Returns:
-        List of context entries ordered by creation time
+        List of context entries ordered chronologically (root to leaf)
+        representing the conversation path leading to the specified node
     """
     collection = db["nodes"]
     
@@ -154,6 +155,7 @@ async def build_context_chain(
         return []
     
     # Build a map of nodes by ID for efficient lookup
+    # Ensure consistent ObjectId string conversion
     node_map = {str(node["_id"]): node for node in nodes}
     
     # Find the path from root to target node
@@ -241,6 +243,9 @@ def truncate_context_for_tokens(context_chain: List[Dict[str, Any]], max_chars: 
     
     if not truncated_parts:
         # If even the last entry is too long, truncate it
+        if not context_chain:
+            return "…[truncated]"
+            
         last_entry = context_chain[-1]
         role = last_entry["role"]
         content = last_entry["content"]
