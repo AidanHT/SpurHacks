@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import rate limiting components
-from core.ratelimit import limiter, DEFAULT_RATE_LIMIT
+from backend.core.ratelimit import limiter, DEFAULT_RATE_LIMIT
 
 
 @asynccontextmanager
@@ -30,12 +30,12 @@ async def lifespan(app: FastAPI):
     print(f"⚡ Rate-limiting middleware enabled: {DEFAULT_RATE_LIMIT}")
     
     # Initialize database
-    from core.database import db_manager
+    from backend.core.database import db_manager
     await db_manager.connect()
     
     # Initialize models (create indexes)
-    from models import init_models
-    database = await db_manager.database
+    from backend.models import init_models
+    database = db_manager.database
     if database:
         await init_models(database)
         print("📊 Models initialized with indexes")
@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
     await db_manager.disconnect()
     
     # Close Redis connection
-    from core.cache import close_redis
+    from backend.core.cache import close_redis
     await close_redis()
 
 
@@ -132,7 +132,7 @@ async def root() -> Dict[str, str]:
 
 
 # Authentication routes
-from auth import AuthRoutes, google_oauth_client, github_oauth_client, jwt_authentication
+from backend.auth import AuthRoutes, google_oauth_client, github_oauth_client, jwt_authentication
 
 # JWT authentication routes
 app.include_router(

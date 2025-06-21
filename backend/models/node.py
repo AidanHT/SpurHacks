@@ -28,7 +28,7 @@ class Node(BaseModel):
     Node model for MongoDB storage
     Represents a node in the decision tree for prompt crafting
     """
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=ObjectId, alias="_id")
     session_id: PyObjectId = Field(...)
     parent_id: Optional[PyObjectId] = Field(None)
     role: str = Field(..., max_length=50)  # e.g., "question", "answer", "prompt"

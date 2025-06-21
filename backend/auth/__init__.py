@@ -16,12 +16,16 @@ from fastapi_users.authentication.strategy import JWTStrategy
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.github import GitHubOAuth2
 
-from core.database import get_user_db
-from models.user import User, UserCreate, UserRead, UserUpdate
+from backend.core.database import get_user_db
+from backend.models.user import User, UserCreate, UserRead, UserUpdate
 
 
 # JWT Configuration
-JWT_SECRET = os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production")
+JWT_SECRET = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET:
+    import secrets
+    JWT_SECRET = secrets.token_urlsafe(32)
+    print("⚠️  WARNING: JWT_SECRET_KEY not set in environment. Using generated secret for development.")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
 
@@ -69,7 +73,7 @@ current_superuser = fastapi_users.current_user(active=True, superuser=True)
 
 async def get_user_manager(user_db=Depends(get_user_db)):
     """Get user manager instance"""
-    from auth.manager import UserManager
+    from backend.auth.manager import UserManager
     
     yield UserManager(user_db)
 

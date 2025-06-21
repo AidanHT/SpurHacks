@@ -10,16 +10,16 @@ from typing import Optional
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, StringIDMixin
 
-from models.user import User, UserCreate
-from core.database import get_user_db
+from backend.models.user import User, UserCreate
+from backend.core.database import get_user_db
 
 
 class UserManager(StringIDMixin, BaseUserManager[User, str]):
     """
     User manager for handling user operations
     """
-    reset_password_token_secret = os.getenv("RESET_PASSWORD_SECRET", "dev-secret-change-in-production")
-    verification_token_secret = os.getenv("VERIFICATION_SECRET", "dev-secret-change-in-production")
+    reset_password_token_secret = os.getenv("RESET_PASSWORD_SECRET", os.getenv("JWT_SECRET_KEY", "change-in-production"))
+    verification_token_secret = os.getenv("VERIFICATION_SECRET", os.getenv("JWT_SECRET_KEY", "change-in-production"))
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         """Called after user registration"""
@@ -54,12 +54,15 @@ class UserManager(StringIDMixin, BaseUserManager[User, str]):
 
         user_dict = user_create.model_dump()
         password = user_dict.pop("password")
-        user_dict["hashed_password"] = self.password_helper.hash(password)
+        
+        # Use the password manager from models
+        from backend.models.user import password_manager
+        user_dict["hashed_password"] = password_manager.hash_password(password)
         user_dict["id"] = str(uuid.uuid4())
         
         # Add timestamps
-        from datetime import datetime
-        current_time = datetime.utcnow().isoformat()
+        from datetime import datetime, timezone
+        current_time = datetime.now(timezone.utc).isoformat()
         user_dict["created_at"] = current_time
         user_dict["updated_at"] = current_time
 

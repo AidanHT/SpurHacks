@@ -45,9 +45,9 @@ async def test_db() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
 
 
 @pytest.fixture
-def sample_user_id() -> PyObjectId:
+def sample_user_id() -> ObjectId:
     """Fixture providing a sample user ObjectId for testing"""
-    return PyObjectId()
+    return ObjectId()
 
 
 class TestPyObjectId:
@@ -55,20 +55,26 @@ class TestPyObjectId:
     
     def test_valid_object_id(self):
         """Test PyObjectId with valid ObjectId string"""
+        from backend.models.session import validate_object_id
+        
         valid_id = str(ObjectId())
-        py_object_id = PyObjectId.validate(valid_id)
+        py_object_id = validate_object_id(valid_id)
         assert isinstance(py_object_id, ObjectId)
         assert str(py_object_id) == valid_id
     
     def test_invalid_object_id(self):
         """Test PyObjectId with invalid ObjectId string"""
+        from backend.models.session import validate_object_id
+        
         with pytest.raises(ValueError, match="Invalid ObjectId"):
-            PyObjectId.validate("invalid_id")
+            validate_object_id("invalid_id")
     
     def test_object_id_from_object_id(self):
         """Test PyObjectId with ObjectId instance"""
+        from backend.models.session import validate_object_id
+        
         original_id = ObjectId()
-        py_object_id = PyObjectId.validate(original_id)
+        py_object_id = validate_object_id(original_id)
         assert py_object_id == original_id
 
 
@@ -173,8 +179,8 @@ class TestNode:
     
     def test_node_creation(self, sample_user_id):
         """Test creating a Node instance"""
-        session_id = PyObjectId()
-        parent_id = PyObjectId()
+        session_id = ObjectId()
+        parent_id = ObjectId()
         
         node = Node(
             session_id=session_id,
@@ -192,7 +198,7 @@ class TestNode:
     
     def test_node_without_parent(self):
         """Test Node without parent (root node)"""
-        session_id = PyObjectId()
+        session_id = ObjectId()
         
         node = Node(
             session_id=session_id,

@@ -28,7 +28,7 @@ class Session(BaseModel):
     Session model for MongoDB storage
     Represents an AI prompt crafting session
     """
-    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    id: PyObjectId = Field(default_factory=ObjectId, alias="_id")
     user_id: PyObjectId = Field(...)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -90,9 +90,12 @@ async def get_user_db() -> AsyncGenerator[Any, None]:
     """
     Dependency for FastAPI Users to get user database adapter
     """
+    # Import inside function to avoid circular imports
     from fastapi_users.db import MongoDBUserDatabase
-    from backend.models.user import User
     
     database = await get_database()
     collection = database["users"]
+    
+    # Import User model only when needed to avoid circular imports
+    from backend.models.user import User
     yield MongoDBUserDatabase(User, collection) 
