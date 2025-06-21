@@ -4,7 +4,8 @@ Interactive AI Prompting Platform
 """
 
 import os
-from typing import Dict
+from contextlib import asynccontextmanager
+from typing import Dict, List
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,6 +14,19 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager for startup and shutdown events."""
+    # Startup
+    print("🚀 Promptly API starting up...")
+    print(f"📝 Environment: {os.getenv('ENVIRONMENT', 'development')}")
+    print(f"🔧 Debug mode: {os.getenv('DEBUG', 'false')}")
+    yield
+    # Shutdown
+    print("👋 Promptly API shutting down...")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Promptly API",
@@ -20,13 +34,18 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs" if os.getenv("ENABLE_DOCS", "true").lower() == "true" else None,
     redoc_url="/redoc" if os.getenv("ENABLE_DOCS", "true").lower() == "true" else None,
+    lifespan=lifespan,
 )
 
 # CORS Configuration
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+cors_origins: List[str] = [
+    origin.strip() 
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()  # Filter out empty strings
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in cors_origins],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,27 +78,14 @@ async def root() -> Dict[str, str]:
     }
 
 
-# Startup event
-@app.on_event("startup")
-async def startup_event() -> None:
-    """Initialize application on startup."""
-    print("🚀 Promptly API starting up...")
-    print(f"📝 Environment: {os.getenv('ENVIRONMENT', 'development')}")
-    print(f"🔧 Debug mode: {os.getenv('DEBUG', 'false')}")
-    
-
-# Shutdown event  
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    """Cleanup on application shutdown."""
-    print("👋 Promptly API shutting down...")
+# Event handlers moved to lifespan context manager above
 
 
 if __name__ == "__main__":
     import uvicorn
     
     uvicorn.run(
-        "main:app",
+        "backend.main:app",
         host=os.getenv("API_HOST", "0.0.0.0"),
         port=int(os.getenv("API_PORT", "8000")),
         reload=os.getenv("RELOAD_ON_CHANGE", "true").lower() == "true",

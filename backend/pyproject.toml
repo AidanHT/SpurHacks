@@ -3,7 +3,7 @@ name = "promptly-backend"
 version = "1.0.0"
 description = "FastAPI backend for Promptly - Interactive AI Prompting Platform"
 authors = ["Promptly Team"]
-readme = "README.md"
+readme = "../README.md"
 packages = [{include = "backend"}]
 
 [tool.poetry.dependencies]
@@ -44,7 +44,7 @@ select = [
     "UP", # pyupgrade
 ]
 ignore = [
-    "E501",  # line too long, handled by black
+    "E501",  # line too long, handled by ruff format
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
