@@ -10,7 +10,6 @@ from typing import Dict, List
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
@@ -34,6 +33,13 @@ async def lifespan(app: FastAPI):
     from core.database import db_manager
     await db_manager.connect()
     
+    # Initialize models (create indexes)
+    from models import init_models
+    database = await db_manager.database
+    if database:
+        await init_models(database)
+        print("📊 Models initialized with indexes")
+    
     yield
     # Shutdown
     print("👋 Promptly API shutting down...")
@@ -56,6 +62,10 @@ app = FastAPI(
 
 # Add rate limiting state
 app.state.limiter = limiter
+
+# Add SlowAPI middleware
+from slowapi.middleware import SlowAPIMiddleware
+app.add_middleware(SlowAPIMiddleware)
 
 # Rate limiting exception handler
 @app.exception_handler(RateLimitExceeded)
@@ -206,7 +216,7 @@ if __name__ == "__main__":
     import uvicorn
     
     uvicorn.run(
-        "backend.main:app",
+        "main:app",
         host=os.getenv("API_HOST", "0.0.0.0"),
         port=int(os.getenv("API_PORT", "8000")),
         reload=os.getenv("RELOAD_ON_CHANGE", "true").lower() == "true",

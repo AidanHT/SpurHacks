@@ -9,7 +9,7 @@ import pytest
 from httpx import AsyncClient
 from fastapi.testclient import TestClient
 
-from backend.main import app
+from main import app
 
 # Test configuration
 TEST_RATE_LIMIT = "5/minute"  # Lower limit for faster testing
@@ -58,7 +58,7 @@ class TestRateLimit:
             pytest.skip("Redis not available for testing")
         
         # Set a very low rate limit for testing
-        from backend.core.ratelimit import limiter
+        from core.ratelimit import limiter
         
         # Flush test Redis database
         test_redis = redis.Redis.from_url(TEST_REDIS_URL)
@@ -118,7 +118,7 @@ class TestRateLimit:
     
     def test_rate_limit_key_function(self):
         """Test the rate limit key generation function."""
-        from backend.core.ratelimit import get_rate_limit_key
+        from core.ratelimit import get_rate_limit_key
         from fastapi import Request
         from unittest.mock import Mock
         
@@ -138,13 +138,13 @@ class TestRateLimit:
         
         # Mock the get_remote_address function
         with pytest.MonkeyPatch().context() as m:
-            m.setattr("backend.core.ratelimit.get_remote_address", lambda x: "192.168.1.1")
+            m.setattr("core.ratelimit.get_remote_address", lambda x: "192.168.1.1")
             key = get_rate_limit_key(request_mock)
             assert key == "ip:192.168.1.1"
     
     def test_ipv6_normalization(self):
         """Test IPv6 address normalization in rate limit key."""
-        from backend.core.ratelimit import get_rate_limit_key
+        from core.ratelimit import get_rate_limit_key
         from fastapi import Request
         from unittest.mock import Mock
         
@@ -154,7 +154,7 @@ class TestRateLimit:
         
         # Test IPv6 normalization
         with pytest.MonkeyPatch().context() as m:
-            m.setattr("backend.core.ratelimit.get_remote_address", lambda x: "2001:db8::1")
+            m.setattr("core.ratelimit.get_remote_address", lambda x: "2001:db8::1")
             key = get_rate_limit_key(request_mock)
             assert key == "ip:[2001:db8::1]"
     
@@ -163,12 +163,12 @@ class TestRateLimit:
         """Test graceful handling of Redis connection failures."""
         # This test would require mocking Redis failures
         # For now, we'll just verify the limiter can be initialized
-        from backend.core.ratelimit import limiter
+        from core.ratelimit import limiter
         assert limiter is not None
     
     def test_environment_rate_limit_config(self):
         """Test that rate limit can be configured via environment."""
-        from backend.core.ratelimit import DEFAULT_RATE_LIMIT
+        from core.ratelimit import DEFAULT_RATE_LIMIT
         
         # Should use default if not set
         assert DEFAULT_RATE_LIMIT == os.getenv("RATE_LIMIT", "60/minute")

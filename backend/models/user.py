@@ -6,7 +6,6 @@ Defines user data structure and authentication methods
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field
 from fastapi_users import schemas
-from fastapi_users import schemas
 import argon2
 
 

@@ -21,13 +21,11 @@ RUN apt-get update && apt-get install -y \
 # Install Poetry
 RUN pip install poetry==1.7.1
 
-# Configure Poetry
+# Configure Poetry (use system Python since we're in a container)
 ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VENV_IN_PROJECT=1 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
-
-# Create non-root user for security
-RUN groupadd -r apiuser && useradd -r -g apiuser apiuser
+    POETRY_VENV_IN_PROJECT=0 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache \
+    POETRY_VIRTUALENVS_CREATE=false
 
 # Set work directory
 WORKDIR /app
@@ -35,16 +33,17 @@ WORKDIR /app
 # Copy Poetry configuration files
 COPY pyproject.toml ./
 
-# Install dependencies (production only)
+# Install dependencies as root (production only)
 RUN poetry lock --no-update && \
-    poetry install --no-dev && \
+    poetry install --only main && \
     rm -rf $POETRY_CACHE_DIR
 
 # Copy application code
 COPY . .
 
-# Change ownership to non-root user
-RUN chown -R apiuser:apiuser /app
+# Create non-root user for security and change ownership
+RUN groupadd -r apiuser && useradd -r -g apiuser apiuser && \
+    chown -R apiuser:apiuser /app
 
 # Switch to non-root user
 USER apiuser
@@ -57,4 +56,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/ping || exit 1
 
 # Default command
-CMD ["poetry", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 

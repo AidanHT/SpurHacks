@@ -5,7 +5,6 @@ Implements user-based rate limiting with Redis backend
 
 import os
 import logging
-from typing import Any
 from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -35,6 +34,10 @@ def get_rate_limit_key(request: Request) -> str:
     
     # Fallback to client IP
     client_ip = get_remote_address(request)
+    
+    # Handle case where client IP is None
+    if client_ip is None:
+        client_ip = "unknown"
     
     # Handle IPv6 addresses by normalizing them
     if client_ip and ":" in client_ip and not client_ip.startswith("["):

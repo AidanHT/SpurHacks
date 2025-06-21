@@ -13,11 +13,10 @@ uvicorn = {extras = ["standard"], version = "^0.24.0"}
 motor = "^3.3.2"
 pydantic = {extras = ["email"], version = "^2.5.0"}
 fastapi-users = {extras = ["mongodb", "jwt", "oauth"], version = "^12.1.2"}
-fastapi-users-db-motor = "^0.2.0"
 argon2-cffi = "^23.1.0"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
-httpx-oauth = "^0.7.0"
-httpx = "^0.25.2"
+httpx-oauth = "^0.16.1"
+httpx = "^0.28.1"
 slowapi = "^0.1.9"
 redis = "^5.0.1"
 python-dotenv = "^1.0.0"

@@ -119,6 +119,44 @@ promptly/
 └── README.md        # This file
 ```
 
+## 📊 **Data Models**
+
+The application uses MongoDB for data persistence with the following core entities:
+
+### **Entity Relationship Overview**
+```
+User (1) ──────► (N) Session ──────► (N) Node
+     │                   │                   │
+     └─ _id              └─ user_id          └─ session_id
+                             _id                 parent_id (self-ref)
+                             title               role
+                             created_at          content
+                             updated_at          created_at
+                             metadata
+```
+
+### **Collections & Indexes**
+
+#### **Sessions Collection**
+- **Purpose**: Store AI prompt crafting sessions
+- **Indexes**: 
+  - `user_id + created_at (desc)` - Latest sessions per user
+  - `user_id` - User session queries
+  - `created_at/updated_at` - Time-based queries
+
+#### **Nodes Collection**
+- **Purpose**: Store decision tree nodes for prompt evolution
+- **Indexes**:
+  - `session_id + parent_id` - Threaded tree queries  
+  - `session_id + created_at` - Session nodes by time
+  - `session_id` - Session node queries
+
+### **Model Features**
+- **Type Safety**: Pydantic models with MongoDB ObjectId support
+- **Timestamps**: Automatic `created_at`/`updated_at` with UTC timezone
+- **Validation**: Field length limits and required field enforcement
+- **Foreign Keys**: Application-level relationship validation
+
 ## 🔐 **Authentication**
 
 The application uses JWT-based authentication with OAuth2 social login support.
