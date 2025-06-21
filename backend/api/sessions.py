@@ -3,21 +3,58 @@ Session API endpoints for Promptly
 Handles session creation and retrieval with authentication
 """
 
+import time
+import logging
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from fastapi.responses import JSONResponse
 from bson import ObjectId
 from bson.errors import InvalidId
+from pydantic import BaseModel, Field
 
 from backend.auth import current_active_user
 from backend.models.user import User
 from backend.models.session import Session, SessionCreate, SessionRead
 from backend.core.database import get_database
 from backend.core.ratelimit import limiter, DEFAULT_RATE_LIMIT
+from backend.services.qa_loop import (
+    QALoopError,
+    get_session_with_validation,
+    validate_node_ownership,
+    check_stop_conditions,
+    build_context_chain,
+    truncate_context_for_tokens,
+    parse_ai_response,
+    insert_user_answer_node,
+    insert_ai_node,
+    update_session_status
+)
+from backend.services.ai_internal import ask_gemini, GeminiServiceError
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
+logger = logging.getLogger(__name__)
+
+
+class AnswerRequest(BaseModel):
+    """Schema for answering a question in a session"""
+    nodeId: str = Field(..., description="ObjectId of the node being answered")
+    selected: str = Field(..., min_length=1, max_length=5000, description="User's selected answer")
+    cancel: Optional[bool] = Field(False, description="Whether to cancel the session")
+
+
+class QuestionResponse(BaseModel):
+    """Schema for AI question response"""
+    question: str = Field(..., description="The AI-generated question")
+    options: List[str] = Field(..., description="Available answer options")
+    nodeId: str = Field(..., description="ID of the created question node")
+
+
+class FinalPromptResponse(BaseModel):
+    """Schema for final prompt response"""
+    finalPrompt: str = Field(..., description="The completed, refined prompt")
+    nodeId: str = Field(..., description="ID of the created final node")
 
 
 @router.post(
@@ -61,6 +98,7 @@ async def create_session(
         max_questions=session_data.max_questions,
         target_model=session_data.target_model,
         settings=session_data.settings,
+        status="active",
         created_at=datetime.now(timezone.utc),
         updated_at=datetime.now(timezone.utc)
     )
@@ -106,6 +144,204 @@ async def create_session(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while creating the session"
+        )
+
+
+@router.post(
+    "/{session_id}/answer",
+    summary="Answer a question in the session",
+    description="Submit an answer to continue the iterative Q&A loop"
+)
+@limiter.limit(DEFAULT_RATE_LIMIT)
+async def answer_question(
+    request: Request,
+    session_id: str,
+    answer_data: AnswerRequest,
+    current_user: User = Depends(current_active_user),
+    db = Depends(get_database)
+):
+    """
+    Submit an answer to continue the Q&A loop.
+    
+    **Path Parameters:**
+    - **session_id**: MongoDB ObjectId of the session
+    
+    **Request Body:**
+    - **nodeId**: ObjectId of the node being answered
+    - **selected**: User's selected answer (1-5000 chars)
+    - **cancel**: Optional flag to cancel the session
+    
+    **Response:**
+    - **200**: Question or final prompt returned
+    - **400**: Invalid request data
+    - **401**: Authentication required
+    - **403**: Access denied
+    - **404**: Session or node not found
+    - **422**: Invalid ID format
+    - **429**: Rate limit exceeded
+    - **502**: AI service error
+    """
+    start_time = time.time()
+    
+    # Validate ObjectId formats
+    try:
+        session_object_id = ObjectId(session_id)
+        node_object_id = ObjectId(answer_data.nodeId)
+    except InvalidId:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid session or node ID format"
+        )
+    
+    try:
+        # Start database transaction for consistency
+        async with await db.client.start_session() as db_session:
+            async with db_session.start_transaction():
+                # 1. Validate session ownership
+                try:
+                    session = await get_session_with_validation(
+                        db, session_object_id, ObjectId(current_user.id)
+                    )
+                except QALoopError as e:
+                    if "not found" in str(e):
+                        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+                    else:
+                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+                
+                # 2. Validate node ownership
+                try:
+                    node = await validate_node_ownership(db, node_object_id, session_object_id)
+                except QALoopError as e:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+                
+                # 3. Check stop conditions
+                should_stop, stop_reason = await check_stop_conditions(
+                    db, session, answer_data.cancel
+                )
+                
+                if should_stop:
+                    # Update session status and return
+                    if stop_reason == "cancelled":
+                        await update_session_status(db, db_session, session_object_id, "cancelled")
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Session cancelled by user request"
+                        )
+                    elif stop_reason == "max_questions_reached":
+                        await update_session_status(db, db_session, session_object_id, "completed")
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Maximum questions limit reached"
+                        )
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Session cannot continue: {stop_reason}"
+                        )
+                
+                # 4. Insert user answer node
+                user_node = await insert_user_answer_node(
+                    db, db_session, session_object_id, node_object_id, answer_data.selected
+                )
+                
+                # 5. Build context chain
+                context_chain = await build_context_chain(db, session_object_id, user_node.id)
+                context_string = truncate_context_for_tokens(context_chain)
+                
+                # 6. Make AI call
+                ai_payload = {
+                    "prompt": f"""You are helping craft an AI prompt through iterative questions. Based on this conversation:
+
+{context_string}
+
+Either ask ONE clarifying question with 2-4 specific options, or provide the final refined prompt.
+
+For a question, respond with JSON:
+{{"question": "Your question here?", "options": ["Option 1", "Option 2", "Option 3"]}}
+
+For the final prompt, respond with JSON:
+{{"finalPrompt": "The complete, refined prompt ready for use"}}
+
+Target model: {session.target_model}
+Settings: {session.settings}"""
+                }
+                
+                try:
+                    ai_start_time = time.time()
+                    raw_response = await ask_gemini(ai_payload)
+                    ai_elapsed = time.time() - ai_start_time
+                    
+                    logger.info(f"Gemini API call completed in {ai_elapsed:.2f}s")
+                    
+                except GeminiServiceError as e:
+                    logger.error(f"Gemini service error: {e}")
+                    raise HTTPException(
+                        status_code=status.HTTP_502_BAD_GATEWAY,
+                        detail=f"AI service error: {e.detail}"
+                    )
+                
+                # 7. Parse AI response
+                question, options, final_prompt = await parse_ai_response(raw_response)
+                
+                if question and options:
+                    # AI provided a question
+                    question_content = f"Question: {question}\nOptions: {', '.join(options)}"
+                    ai_node = await insert_ai_node(
+                        db, db_session, session_object_id, user_node.id,
+                        question_content, "question", raw_response
+                    )
+                    
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"Q&A loop iteration completed in {elapsed_time:.2f}s")
+                    
+                    return QuestionResponse(
+                        question=question,
+                        options=options,
+                        nodeId=str(ai_node.id)
+                    )
+                
+                elif final_prompt:
+                    # AI provided final prompt
+                    ai_node = await insert_ai_node(
+                        db, db_session, session_object_id, user_node.id,
+                        final_prompt, "final", raw_response
+                    )
+                    
+                    # Mark session as completed
+                    await update_session_status(db, db_session, session_object_id, "completed")
+                    
+                    elapsed_time = time.time() - start_time
+                    logger.info(f"Q&A loop completed with final prompt in {elapsed_time:.2f}s")
+                    
+                    return FinalPromptResponse(
+                        finalPrompt=final_prompt,
+                        nodeId=str(ai_node.id)
+                    )
+                
+                else:
+                    # Fallback - treat as final prompt
+                    fallback_prompt = "Unable to generate a proper response. Please try again."
+                    ai_node = await insert_ai_node(
+                        db, db_session, session_object_id, user_node.id,
+                        fallback_prompt, "final", raw_response
+                    )
+                    
+                    await update_session_status(db, db_session, session_object_id, "completed")
+                    
+                    return FinalPromptResponse(
+                        finalPrompt=fallback_prompt,
+                        nodeId=str(ai_node.id)
+                    )
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Handle unexpected errors
+        logger.error(f"Unexpected error in Q&A loop for session {session_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during the Q&A loop"
         )
 
 

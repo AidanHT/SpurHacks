@@ -40,11 +40,21 @@ class Session(BaseModel):
     max_questions: int = Field(default=10, ge=1, le=20)
     target_model: str = Field(default="gpt-4", max_length=50)
     settings: Dict[str, Any] = Field(default_factory=dict)
+    status: str = Field(default="active", max_length=20)  # active, completed, cancelled
     
     class Config:
         populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        """Validate session status"""
+        valid_statuses = ["active", "completed", "cancelled"]
+        if v not in valid_statuses:
+            raise ValueError(f"Status must be one of: {', '.join(valid_statuses)}")
+        return v
 
 
 class SessionCreate(BaseModel):
@@ -97,6 +107,7 @@ class SessionUpdate(BaseModel):
     max_questions: Optional[int] = Field(None, ge=1, le=20)
     target_model: Optional[str] = Field(None, max_length=50)
     settings: Optional[Dict[str, Any]] = None
+    status: Optional[str] = Field(None, max_length=20)
     
     @field_validator('target_model')
     @classmethod
@@ -135,6 +146,18 @@ class SessionUpdate(BaseModel):
             
         return v
 
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        """Validate session status (if provided)"""
+        if v is None:
+            return v
+        
+        valid_statuses = ["active", "completed", "cancelled"]
+        if v not in valid_statuses:
+            raise ValueError(f"Status must be one of: {', '.join(valid_statuses)}")
+        return v
+
 
 class SessionRead(BaseModel):
     """Schema for reading session data"""
@@ -148,6 +171,7 @@ class SessionRead(BaseModel):
     max_questions: int
     target_model: str
     settings: Dict[str, Any]
+    status: str
     
     class Config:
         populate_by_name = True
@@ -161,6 +185,7 @@ async def ensure_session_indexes(db: AsyncIOMotorDatabase):
     - user_id + created_at (descending) for "latest sessions per user"
     - user_id for user session queries
     - created_at for time-based queries
+    - status for filtering by session state
     """
     collection = db["sessions"]
     
@@ -173,4 +198,5 @@ async def ensure_session_indexes(db: AsyncIOMotorDatabase):
     # Single field indexes
     await collection.create_index("user_id", name="user_id_index")
     await collection.create_index("created_at", name="created_at_index")
-    await collection.create_index("updated_at", name="updated_at_index") 
+    await collection.create_index("updated_at", name="updated_at_index")
+    await collection.create_index("status", name="status_index") 

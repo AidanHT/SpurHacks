@@ -277,7 +277,7 @@ Set the following environment variables in your `.env` file:
 
 ```bash
 # Required - Get from Google AI Studio
-GEMINI_API_KEY=your-gemini-api-key-here
+GEMINI_API_KEY=your-gemini-api-key
 
 # Optional - Custom API endpoint
 GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
@@ -342,3 +342,380 @@ This ensures reliable API communication while preserving prompt intent.
 ## 📄 **License**
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+
+## Key Features
+
+### Core Functionality
+- **Iterative Q&A Loop**: AI-guided refinement through targeted questions
+- **Session Management**: Create, update, and track prompt crafting sessions
+- **Multiple UI Modes**: Simple editor with live suggestions and D3.js decision-tree visualizer
+- **User Profiles**: OAuth2 authentication with session sharing and version history
+- **Multi-Model Support**: Target external models (GPT-4, Claude, Llama) with internal refinement on Google Gemini 2.5
+
+### Advanced Features
+- **Context Injection**: Import context from files, Jira, Notion
+- **Sub-prompt Splitting**: Break down complex prompts into manageable parts
+- **Mind-map Integration**: Import/export mind-maps for visual prompt planning
+- **Collaboration Tools**: Role-based access control and GitHub issues import
+- **Spec Generation**: Auto-generate prompt specifications
+
+## Tech Stack
+
+- **Frontend**: React, TypeScript, Vite, D3.js, Shadcn UI *(Coming Soon)*
+- **Backend**: Python 3.11, FastAPI, Uvicorn, Docker
+- **Database**: MongoDB (+ optional PostgreSQL)
+- **Authentication**: OAuth2/JWT with Google and GitHub
+- **AI Integration**: Google Gemini 2.5, OpenAI/GGML
+- **DevOps**: Docker, GitHub Actions CI/CD
+
+## Quick Start
+
+### Prerequisites
+- Python 3.11+
+- MongoDB
+- Redis
+- Google Gemini API key
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd SpurHacks
+   ```
+
+2. **Set up environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. **Install dependencies**
+   ```bash
+   cd backend
+   poetry install
+   ```
+
+4. **Start services**
+   ```bash
+   # Using Docker Compose (recommended)
+   docker-compose -f infra/docker-compose.yml up -d
+   
+   # Or manually start MongoDB and Redis
+   ```
+
+5. **Run the application**
+   ```bash
+   cd backend
+   poetry run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+## API Documentation
+
+### Authentication
+
+All API endpoints (except health checks) require authentication via JWT bearer tokens.
+
+```bash
+# Register a new user
+POST /auth/register
+{
+  "email": "user@example.com", 
+  "password": "secure_password",
+  "username": "username"
+}
+
+# Login
+POST /auth/jwt/login
+{
+  "username": "user@example.com",
+  "password": "secure_password"
+}
+```
+
+### Session Management
+
+#### Create a Session
+```bash
+POST /sessions
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "title": "My Creative Writing Session",
+  "starterPrompt": "Help me write a compelling story",
+  "maxQuestions": 5,
+  "targetModel": "gpt-4",
+  "settings": {
+    "tone": "creative",
+    "wordLimit": 500
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "id": "507f1f77bcf86cd799439011",
+  "userId": "507f1f77bcf86cd799439012",
+  "title": "My Creative Writing Session",
+  "starterPrompt": "Help me write a compelling story",
+  "maxQuestions": 5,
+  "targetModel": "gpt-4",
+  "settings": {"tone": "creative", "wordLimit": 500},
+  "status": "active",
+  "createdAt": "2024-01-15T10:30:00Z",
+  "updatedAt": "2024-01-15T10:30:00Z"
+}
+```
+
+#### List Sessions
+```bash
+GET /sessions?limit=20&skip=0
+Authorization: Bearer <token>
+```
+
+#### Get Session Details
+```bash
+GET /sessions/{session_id}
+Authorization: Bearer <token>
+```
+
+### Iterative Q&A Loop
+
+The core feature of Promptly is the iterative Q&A loop that refines prompts through AI-generated questions.
+
+#### Submit an Answer
+```bash
+POST /sessions/{session_id}/answer
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "nodeId": "507f1f77bcf86cd799439013",
+  "selected": "Fantasy",
+  "cancel": false
+}
+```
+
+**Question Response:**
+```json
+{
+  "question": "What type of fantasy setting would you prefer?",
+  "options": [
+    "Medieval fantasy with dragons and magic",
+    "Urban fantasy in modern world",
+    "High fantasy with elves and orcs",
+    "Dark fantasy with horror elements"
+  ],
+  "nodeId": "507f1f77bcf86cd799439014"
+}
+```
+
+**Final Prompt Response:**
+```json
+{
+  "finalPrompt": "Write a medieval fantasy story about a young blacksmith who discovers they can forge magical weapons. The story should be creative and engaging, with rich world-building and compelling characters. Target length: approximately 500 words. Include elements of adventure and personal growth.",
+  "nodeId": "507f1f77bcf86cd799439015"
+}
+```
+
+### Q&A Loop Flow
+
+1. **Session Creation**: User creates a session with initial prompt and preferences
+2. **Initial Question**: AI generates first clarifying question based on starter prompt
+3. **Iterative Refinement**: 
+   - User selects from provided options
+   - AI generates next question or final prompt
+   - Process continues until completion
+4. **Completion**: Session marked as "completed" with final refined prompt
+
+### Stop Conditions
+
+The Q&A loop stops when:
+- **Maximum questions reached**: Configured via `maxQuestions` (1-20)
+- **Final prompt generated**: AI determines enough information has been gathered
+- **User cancellation**: Setting `"cancel": true` in answer request
+- **Session completed/cancelled**: Session status prevents further questions
+
+### Error Handling
+
+**Common Error Responses:**
+```json
+// Invalid input
+{
+  "detail": "Invalid session or node ID format",
+  "status_code": 422
+}
+
+// Access denied
+{
+  "detail": "Access denied: You can only access your own sessions",
+  "status_code": 403
+}
+
+// Resource not found
+{
+  "detail": "Session not found",
+  "status_code": 404
+}
+
+// Rate limiting
+{
+  "detail": "Rate limit exceeded",
+  "status_code": 429
+}
+
+// AI service error
+{
+  "detail": "AI service error: Request timeout",
+  "status_code": 502
+}
+```
+
+## Example Usage Flow
+
+Here's a complete example of using the Q&A loop:
+
+```python
+import requests
+
+# 1. Create session
+session_response = requests.post("http://localhost:8000/sessions", 
+    headers={"Authorization": f"Bearer {token}"},
+    json={
+        "title": "Story Writing Assistant",
+        "starterPrompt": "Help me write an engaging short story",
+        "maxQuestions": 3,
+        "targetModel": "gpt-4",
+        "settings": {"tone": "creative", "wordLimit": 800}
+    }
+)
+session_id = session_response.json()["id"]
+
+# 2. Start with initial question node (you'll need to create this first)
+# In practice, this would be done by your frontend/application logic
+
+# 3. First Q&A iteration
+answer_response = requests.post(f"http://localhost:8000/sessions/{session_id}/answer",
+    headers={"Authorization": f"Bearer {token}"},
+    json={
+        "nodeId": "initial_question_node_id",
+        "selected": "Science Fiction"
+    }
+)
+
+if "question" in answer_response.json():
+    # AI asked another question
+    question_data = answer_response.json()
+    print(f"Question: {question_data['question']}")
+    print(f"Options: {question_data['options']}")
+    
+    # 4. Second Q&A iteration
+    answer_response = requests.post(f"http://localhost:8000/sessions/{session_id}/answer",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "nodeId": question_data["nodeId"],
+            "selected": "Space exploration and alien contact"
+        }
+    )
+
+if "finalPrompt" in answer_response.json():
+    # AI provided final refined prompt
+    final_data = answer_response.json()
+    print(f"Final Prompt: {final_data['finalPrompt']}")
+```
+
+## Development
+
+### Running Tests
+```bash
+cd backend
+poetry run pytest -v
+```
+
+### Code Quality
+```bash
+# Linting
+poetry run flake8 .
+
+# Type checking
+poetry run mypy .
+```
+
+### API Documentation
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## Configuration
+
+Key environment variables:
+
+```env
+# Database
+MONGODB_URL=mongodb://localhost:27017/promptly
+REDIS_URL=redis://localhost:6379
+
+# Authentication
+JWT_SECRET_KEY=your-secret-key-here
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GITHUB_CLIENT_ID=your-github-oauth-client-id
+
+# AI Services
+GEMINI_API_KEY=your-gemini-api-key
+
+# Application
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+ENVIRONMENT=development
+DEBUG=true
+```
+
+## Architecture
+
+### Backend Structure
+```
+backend/
+├── api/           # FastAPI route handlers
+├── auth/          # Authentication & authorization
+├── core/          # Database, caching, rate limiting
+├── models/        # Pydantic models & MongoDB schemas
+├── services/      # Business logic & external integrations
+└── tests/         # Test suite
+```
+
+### Data Models
+
+**Session**: Represents a prompt crafting session
+- User ownership and permissions
+- Configuration (max questions, target model, settings)
+- Status tracking (active, completed, cancelled)
+
+**Node**: Represents a step in the decision tree
+- Hierarchical structure (parent-child relationships)
+- Role-based content (user answers, AI questions/responses)
+- Type classification (question, answer, final prompt)
+- Raw AI response storage for debugging
+
+**User**: Authentication and user management
+- OAuth2 integration
+- JWT token handling
+- Session ownership
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For questions, issues, or contributions:
+- Open an issue on GitHub
+- Contact the development team
+- Check the API documentation at `/docs` 

@@ -4,7 +4,7 @@ Defines node data structure for prompt decision trees
 """
 
 from datetime import datetime, timezone
-from typing import Optional, Annotated, Any
+from typing import Optional, Annotated, Any, Dict
 
 from bson import ObjectId
 from pydantic import BaseModel, Field, BeforeValidator
@@ -31,8 +31,10 @@ class Node(BaseModel):
     id: PyObjectId = Field(default_factory=ObjectId, alias="_id")
     session_id: PyObjectId = Field(...)
     parent_id: Optional[PyObjectId] = Field(None)
-    role: str = Field(..., max_length=50)  # e.g., "question", "answer", "prompt"
+    role: str = Field(..., max_length=50)  # e.g., "user", "assistant"
     content: str = Field(..., max_length=10000)
+    type: Optional[str] = Field(None, max_length=50)  # e.g., "question", "final", "answer"
+    extra: Optional[Dict[str, Any]] = Field(default_factory=dict)  # For raw AI responses and metadata
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
     class Config:
@@ -47,12 +49,16 @@ class NodeCreate(BaseModel):
     parent_id: Optional[str] = Field(None)
     role: str = Field(..., max_length=50)
     content: str = Field(..., max_length=10000)
+    type: Optional[str] = Field(None, max_length=50)
+    extra: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class NodeUpdate(BaseModel):
     """Schema for updating an existing node"""
     role: Optional[str] = Field(None, max_length=50)
     content: Optional[str] = Field(None, max_length=10000)
+    type: Optional[str] = Field(None, max_length=50)
+    extra: Optional[Dict[str, Any]] = None
 
 
 class NodeRead(BaseModel):
@@ -62,6 +68,8 @@ class NodeRead(BaseModel):
     parent_id: Optional[str] = None
     role: str
     content: str
+    type: Optional[str] = None
+    extra: Optional[Dict[str, Any]] = None
     created_at: datetime
     
     class Config:
