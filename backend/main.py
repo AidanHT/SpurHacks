@@ -7,12 +7,18 @@ import os
 from contextlib import asynccontextmanager
 from typing import Dict, List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# Import rate limiting components
+from core.ratelimit import limiter, DEFAULT_RATE_LIMIT
 
 
 @asynccontextmanager
@@ -22,15 +28,20 @@ async def lifespan(app: FastAPI):
     print("🚀 Promptly API starting up...")
     print(f"📝 Environment: {os.getenv('ENVIRONMENT', 'development')}")
     print(f"🔧 Debug mode: {os.getenv('DEBUG', 'false')}")
+    print(f"⚡ Rate-limiting middleware enabled: {DEFAULT_RATE_LIMIT}")
     
     # Initialize database
-    from backend.core.database import db_manager
+    from core.database import db_manager
     await db_manager.connect()
     
     yield
     # Shutdown
     print("👋 Promptly API shutting down...")
     await db_manager.disconnect()
+    
+    # Close Redis connection
+    from core.cache import close_redis
+    await close_redis()
 
 
 # Initialize FastAPI app
@@ -42,6 +53,32 @@ app = FastAPI(
     redoc_url="/redoc" if os.getenv("ENABLE_DOCS", "true").lower() == "true" else None,
     lifespan=lifespan,
 )
+
+# Add rate limiting state
+app.state.limiter = limiter
+
+# Rate limiting exception handler
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """
+    Custom rate limit exceeded handler.
+    
+    Returns JSON response with 429 status and Retry-After header.
+    """
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        f"Rate limit exceeded for {request.client.host if request.client else 'unknown'} "
+        f"on {request.method} {request.url.path}"
+    )
+    
+    response = JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded"}
+    )
+    response.headers["Retry-After"] = str(exc.retry_after or 60)
+    return response
 
 # CORS Configuration
 cors_origins: List[str] = [
@@ -85,7 +122,7 @@ async def root() -> Dict[str, str]:
 
 
 # Authentication routes
-from backend.auth import AuthRoutes, google_oauth_client, github_oauth_client, jwt_authentication
+from auth import AuthRoutes, google_oauth_client, github_oauth_client, jwt_authentication
 
 # JWT authentication routes
 app.include_router(
@@ -134,6 +171,35 @@ if os.getenv("GITHUB_CLIENT_ID") and os.getenv("GITHUB_CLIENT_SECRET"):
         prefix="/auth/github",
         tags=["auth"]
     )
+
+
+# AI Services Router (with rate limiting)
+from fastapi import APIRouter
+
+ai_router = APIRouter()
+
+@ai_router.get("/ping")
+@limiter.limit(DEFAULT_RATE_LIMIT)
+async def ai_ping(request: Request) -> Dict[str, str]:
+    """
+    AI services health check endpoint.
+    Rate limited to prevent abuse.
+    
+    Returns:
+        Dict containing AI service status
+    """
+    return {
+        "status": "ok",
+        "service": "ai",
+        "rate_limit": DEFAULT_RATE_LIMIT
+    }
+
+# Include AI router with rate limiting
+app.include_router(
+    ai_router,
+    prefix="/ai",
+    tags=["ai"]
+)
 
 
 if __name__ == "__main__":

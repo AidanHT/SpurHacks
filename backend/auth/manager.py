@@ -10,8 +10,8 @@ from typing import Optional
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, StringIDMixin
 
-from backend.models.user import User, UserCreate
-from backend.core.database import get_user_db
+from models.user import User, UserCreate
+from core.database import get_user_db
 
 
 class UserManager(StringIDMixin, BaseUserManager[User, str]):

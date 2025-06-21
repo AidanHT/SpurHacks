@@ -6,13 +6,18 @@ Defines user data structure and authentication methods
 from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field
 from fastapi_users import schemas
-from fastapi_users.db import BaseOAuthAccount
+from fastapi_users import schemas
 import argon2
 
 
-class OAuthAccount(BaseOAuthAccount):
+class OAuthAccount(BaseModel):
     """OAuth account model for social login"""
-    pass
+    oauth_name: str
+    access_token: str
+    expires_at: Optional[int] = None
+    refresh_token: Optional[str] = None
+    account_id: str
+    account_email: str
 
 
 class User(BaseModel):

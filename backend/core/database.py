@@ -90,8 +90,50 @@ async def get_user_db() -> AsyncGenerator:
     """
     Dependency for FastAPI Users to get user database adapter
     """
-    from fastapi_users_db_motor import MotorUserDatabase
-    from backend.models.user import User
-    
-    database = await get_database()
-    yield MotorUserDatabase(database, User) 
+    try:
+        # Try the newer package name first
+        from fastapi_users_db_mongodb import MongoDBUserDatabase
+        from models.user import User
+        
+        database = await get_database()
+        yield MongoDBUserDatabase(database, User)
+    except ImportError:
+        try:
+            # Fallback to older package name
+            from fastapi_users_db_motor import MotorUserDatabase
+            from models.user import User
+            
+            database = await get_database()
+            yield MotorUserDatabase(database, User)
+        except ImportError:
+            # Simple fallback implementation
+            from models.user import User
+            database = await get_database()
+            
+            class SimpleUserDatabase:
+                def __init__(self, database, user_model):
+                    self.database = database
+                    self.collection = database.users
+                    self.user_model = user_model
+                
+                async def get(self, id: str):
+                    user_dict = await self.collection.find_one({"id": id})
+                    return self.user_model(**user_dict) if user_dict else None
+                
+                async def get_by_email(self, email: str):
+                    user_dict = await self.collection.find_one({"email": email})
+                    return self.user_model(**user_dict) if user_dict else None
+                
+                async def create(self, user_dict: dict):
+                    result = await self.collection.insert_one(user_dict)
+                    user_dict["_id"] = result.inserted_id
+                    return self.user_model(**user_dict)
+                
+                async def update(self, user_dict: dict):
+                    await self.collection.replace_one({"id": user_dict["id"]}, user_dict)
+                    return self.user_model(**user_dict)
+                
+                async def delete(self, user):
+                    await self.collection.delete_one({"id": user.id})
+            
+            yield SimpleUserDatabase(database, User) 
