@@ -4,7 +4,7 @@ Provides MongoDB async client configuration and dependency injection
 """
 
 import os
-from typing import AsyncGenerator, Optional, Union, Any
+from typing import AsyncGenerator, Optional, Any
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from fastapi import Depends
@@ -80,9 +80,15 @@ async def get_database() -> AsyncIOMotorDatabase:
         RuntimeError: If database connection fails
     """
     if not db_manager.database:
-        await db_manager.connect()
+        try:
+            await db_manager.connect()
+        except Exception as e:
+            print(f"❌ Database connection failed in get_database(): {e}")
+            raise RuntimeError(f"Failed to connect to database: {e}") from e
+    
     if not db_manager.database:
-        raise RuntimeError("Failed to connect to database")
+        raise RuntimeError("Database connection is None after connection attempt")
+    
     return db_manager.database
 
 

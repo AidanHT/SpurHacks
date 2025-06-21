@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, Annotated
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, BeforeValidator, validator
+from pydantic import BaseModel, Field, BeforeValidator, field_validator
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 
@@ -56,7 +56,8 @@ class SessionCreate(BaseModel):
     target_model: str = Field(..., min_length=1, max_length=50)
     settings: Dict[str, Any] = Field(...)
     
-    @validator('settings')
+    @field_validator('settings')
+    @classmethod
     def validate_settings(cls, v):
         """Validate settings structure"""
         if not isinstance(v, dict):
@@ -73,7 +74,8 @@ class SessionCreate(BaseModel):
             
         return v
     
-    @validator('target_model')
+    @field_validator('target_model')
+    @classmethod
     def validate_target_model(cls, v):
         """Validate target model is supported"""
         supported_models = [
@@ -95,6 +97,43 @@ class SessionUpdate(BaseModel):
     max_questions: Optional[int] = Field(None, ge=1, le=20)
     target_model: Optional[str] = Field(None, max_length=50)
     settings: Optional[Dict[str, Any]] = None
+    
+    @field_validator('target_model')
+    @classmethod
+    def validate_target_model(cls, v):
+        """Validate target model is supported (if provided)"""
+        if v is None:
+            return v
+        
+        supported_models = [
+            'gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo',
+            'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
+            'llama-2-70b', 'llama-2-13b', 'gemini-pro'
+        ]
+        if v not in supported_models:
+            raise ValueError(f"Unsupported target model. Supported models: {', '.join(supported_models)}")
+        return v
+    
+    @field_validator('settings')
+    @classmethod
+    def validate_settings(cls, v):
+        """Validate settings structure (if provided)"""
+        if v is None:
+            return v
+            
+        if not isinstance(v, dict):
+            raise ValueError("Settings must be a dictionary")
+        
+        # Validate settings fields
+        tone = v.get('tone')
+        word_limit = v.get('wordLimit')
+        
+        if tone is not None and not isinstance(tone, str):
+            raise ValueError("Settings.tone must be a string")
+        if word_limit is not None and not isinstance(word_limit, int):
+            raise ValueError("Settings.wordLimit must be an integer")
+            
+        return v
 
 
 class SessionRead(BaseModel):

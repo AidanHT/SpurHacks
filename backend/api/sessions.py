@@ -4,9 +4,9 @@ Handles session creation and retrieval with authentication
 """
 
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Dict, Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Query
 from fastapi.responses import JSONResponse
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -90,10 +90,22 @@ async def create_session(
         
         return response
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except ValueError as e:
+        # Handle validation errors
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid session data: {str(e)}"
+        )
     except Exception as e:
+        # Handle unexpected database errors
+        import logging
+        logging.error(f"Unexpected error creating session for user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create session: {str(e)}"
+            detail="An unexpected error occurred while creating the session"
         )
 
 
@@ -157,7 +169,7 @@ async def get_session(
 
 @router.get(
     "",
-    response_model=list[SessionRead],
+    response_model=List[SessionRead],
     summary="List user sessions",
     description="Get all sessions for the authenticated user, ordered by creation time (latest first)"
 )
@@ -166,8 +178,8 @@ async def list_sessions(
     request: Request,
     current_user: User = Depends(current_active_user),
     db = Depends(get_database),
-    limit: int = 50,
-    skip: int = 0
+    limit: int = Query(default=50, ge=1, le=100, description="Maximum number of sessions to return"),
+    skip: int = Query(default=0, ge=0, description="Number of sessions to skip for pagination")
 ):
     """
     List all sessions for the authenticated user.
@@ -179,13 +191,10 @@ async def list_sessions(
     **Response:**
     - **200**: Sessions retrieved successfully
     - **401**: Authentication required
+    - **422**: Invalid pagination parameters
     - **429**: Rate limit exceeded
     """
-    # Validate pagination parameters
-    if limit > 100:
-        limit = 100
-    if skip < 0:
-        skip = 0
+    # No need for manual validation - FastAPI handles it with Query validation
     
     # Query user sessions
     collection = db["sessions"]
