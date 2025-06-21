@@ -267,6 +267,70 @@ curl -X GET "http://localhost:8000/sessions?limit=10&skip=0" \
 - **422**: Validation error (invalid fields)
 - **429**: Rate limit exceeded
 
+## 🧠 **AI Integration**
+
+Promptly integrates with Google Gemini 2.5 as the primary AI service for prompt refinement and intelligent questioning.
+
+### **Configuration**
+
+Set the following environment variables in your `.env` file:
+
+```bash
+# Required - Get from Google AI Studio
+GEMINI_API_KEY=your-gemini-api-key-here
+
+# Optional - Custom API endpoint
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
+
+# Optional - Model parameters
+GEMINI_MODEL=gemini-2.0-flash-exp
+GEMINI_MAX_TOKENS=4096
+GEMINI_TEMPERATURE=0.7
+```
+
+### **Features**
+
+- **Smart Input Processing**: Automatic prompt truncation at 2,000 characters with `…[truncated]` marker
+- **Reliable Communication**: Exponential backoff retry (1s, 2s, 4s) on server errors with jitter
+- **Context Injection**: System message automatically added: `"You are Gemini 2.5, respond concisely."`
+- **Performance Optimized**: Shared HTTP client singleton for connection pooling
+- **Security First**: API keys never logged; requests truncated to 100 chars in logs
+
+### **Usage Example**
+
+```python
+from backend.services import ask_gemini, GeminiServiceError
+
+# Basic usage
+try:
+    response = await ask_gemini({
+        "prompt": "Help me create a marketing prompt for a SaaS product",
+        "temperature": 0.7,
+        "max_tokens": 1000
+    })
+    print(response["candidates"][0]["content"]["parts"][0]["text"])
+except GeminiServiceError as e:
+    print(f"AI service error {e.status}: {e.detail}")
+```
+
+### **Error Handling**
+
+The AI service implements comprehensive error handling:
+
+- **Validation Errors** (`ValueError`): Invalid input parameters
+- **Configuration Errors** (`GeminiServiceError 500`): Missing API key
+- **Client Errors** (`GeminiServiceError 4xx`): No retry, immediate failure
+- **Server Errors** (`GeminiServiceError 5xx`): Automatic retry with exponential backoff
+- **Timeout Errors** (`GeminiServiceError 408`): Retry on network timeouts
+
+### **Character Limit Rule**
+
+Prompts exceeding 2,000 characters are automatically truncated to prevent API errors:
+- **Input**: `"x" * 2500`
+- **Processed**: `"x" * 1985 + "…[truncated]"` (exactly 2,000 chars)
+
+This ensures reliable API communication while preserving prompt intent.
+
 ## 🤝 **Contributing**
 
 1. Fork the repository
