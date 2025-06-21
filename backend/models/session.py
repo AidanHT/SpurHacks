@@ -76,11 +76,14 @@ class SessionCreate(BaseModel):
         # Validate required settings fields
         tone = v.get('tone')
         word_limit = v.get('wordLimit')
+        context_sources = v.get('contextSources')
         
         if tone is not None and not isinstance(tone, str):
             raise ValueError("Settings.tone must be a string")
         if word_limit is not None and not isinstance(word_limit, int):
             raise ValueError("Settings.wordLimit must be an integer")
+        if context_sources is not None and not isinstance(context_sources, list):
+            raise ValueError("Settings.contextSources must be a list")
             
         return v
     
@@ -138,11 +141,14 @@ class SessionUpdate(BaseModel):
         # Validate settings fields
         tone = v.get('tone')
         word_limit = v.get('wordLimit')
+        context_sources = v.get('contextSources')
         
         if tone is not None and not isinstance(tone, str):
             raise ValueError("Settings.tone must be a string")
         if word_limit is not None and not isinstance(word_limit, int):
             raise ValueError("Settings.wordLimit must be an integer")
+        if context_sources is not None and not isinstance(context_sources, list):
+            raise ValueError("Settings.contextSources must be a list")
             
         return v
 

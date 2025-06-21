@@ -481,6 +481,49 @@ GET /sessions/{session_id}
 Authorization: Bearer <token>
 ```
 
+### File Uploads
+
+Promptly supports secure file uploads for context injection into AI prompting sessions.
+
+#### Upload a File
+```bash
+POST /api/files
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+# Upload with optional session linking
+curl -X POST "http://localhost:8000/api/files?session_id=507f1f77bcf86cd799439011" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@document.pdf"
+```
+
+**Response:**
+```json
+{
+  "fileId": "550e8400-e29b-41d4-a716-446655440000",
+  "url": "https://minio:9000/promptly-files/session-id/file-id-filename.pdf?X-Amz-Algorithm=...",
+  "size": 12345,
+  "mime": "application/pdf"
+}
+```
+
+#### File Upload Features
+- **Size Limit**: Maximum 20 MB per file
+- **Security**: Dangerous file types automatically rejected (`.exe`, `.bat`, `.js`, etc.)
+- **Storage**: Files stored in MinIO with S3-compatible interface
+- **Access Control**: 24-hour presigned URLs for secure access
+- **Session Integration**: Files automatically linked to sessions as context sources
+
+#### Get File Information
+```bash
+GET /api/files/{file_id}
+Authorization: Bearer <token>
+```
+
+#### Supported File Types
+✅ Documents (PDF, DOC, TXT), Images (JPG, PNG, GIF), Data (JSON, CSV, XML)
+❌ Executables, Scripts, Dangerous MIME types
+
 ### Iterative Q&A Loop
 
 The core feature of Promptly is the iterative Q&A loop that refines prompts through AI-generated questions.
@@ -664,11 +707,30 @@ GITHUB_CLIENT_ID=your-github-oauth-client-id
 # AI Services
 GEMINI_API_KEY=your-gemini-api-key
 
+# File Storage (MinIO)
+MINIO_ENDPOINT=minio:9000
+MINIO_ACCESS_KEY=minioadmin
+MINIO_SECRET_KEY=change-this-minio-password
+MINIO_BUCKET=promptly-files
+MINIO_SECURE=false
+MINIO_URL_EXPIRY_HOURS=24
+
 # Application
 CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 ENVIRONMENT=development
 DEBUG=true
 ```
+
+### MinIO Configuration Reference
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `MINIO_ENDPOINT` | MinIO server endpoint | `minio:9000` | ✅ |
+| `MINIO_ACCESS_KEY` | MinIO access key | `minioadmin` | ✅ |
+| `MINIO_SECRET_KEY` | MinIO secret key | `minioadmin` | ✅ |
+| `MINIO_BUCKET` | Storage bucket name | `promptly-files` | ✅ |
+| `MINIO_SECURE` | Use HTTPS connection | `false` | ❌ |
+| `MINIO_URL_EXPIRY_HOURS` | Presigned URL expiry | `24` | ❌ |
 
 ## Architecture
 

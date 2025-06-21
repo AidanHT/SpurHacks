@@ -263,12 +263,13 @@ app.include_router(
     tags=["ai"]
 )
 
-# Sessions API router
-from backend.api import sessions_router
-app.include_router(
-    sessions_router,
-    tags=["sessions"]
-)
+# Session management routes
+from backend.api.sessions import router as sessions_router
+app.include_router(sessions_router, prefix="/api")
+
+# File upload routes
+from backend.api.files import router as files_router
+app.include_router(files_router, prefix="/api")
 
 
 if __name__ == "__main__":
