@@ -1,0 +1,97 @@
+{
+    "name": "Promptly Development",
+    "dockerComposeFile": "../infra/docker-compose.yml",
+    "service": "api",
+    "workspaceFolder": "/app",
+    "shutdownAction": "stopCompose",
+    // Set *default* container specific settings.json values on container create.
+    "customizations": {
+        "vscode": {
+            // Extensions to install
+            "extensions": [
+                "ms-python.python",
+                "ms-python.pylint",
+                "ms-python.black-formatter",
+                "ms-python.isort",
+                "ms-azuretools.vscode-docker",
+                "bradlc.vscode-tailwindcss",
+                "esbenp.prettier-vscode",
+                "dbaeumer.vscode-eslint",
+                "ms-vscode.vscode-typescript-next",
+                "ms-vscode.vscode-json",
+                "redhat.vscode-yaml",
+                "ms-python.autopep8",
+                "charliermarsh.ruff",
+                "ms-python.mypy-type-checker"
+            ],
+            // VS Code settings
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": true,
+                "python.formatting.provider": "black",
+                "python.formatting.blackPath": "/usr/local/bin/black",
+                "python.linting.mypyEnabled": true,
+                "python.analysis.typeCheckingMode": "basic",
+                "editor.formatOnSave": true,
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": true
+                },
+                "files.exclude": {
+                    "**/__pycache__": true,
+                    "**/*.pyc": true
+                },
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+        }
+    },
+    // Features to add to the dev container
+    "features": {
+        "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/github-cli:1": {},
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "18"
+        }
+    },
+    // Use 'forwardPorts' to make a list of ports inside the container available locally
+    "forwardPorts": [
+        8000,
+        5173,
+        27017,
+        6379,
+        9000,
+        9001
+    ],
+    // Port attributes
+    "portsAttributes": {
+        "8000": {
+            "label": "FastAPI Backend",
+            "onAutoForward": "notify"
+        },
+        "5173": {
+            "label": "Vite Frontend",
+            "onAutoForward": "openBrowser"
+        },
+        "27017": {
+            "label": "MongoDB"
+        },
+        "6379": {
+            "label": "Redis"
+        },
+        "9000": {
+            "label": "MinIO API"
+        },
+        "9001": {
+            "label": "MinIO Console",
+            "onAutoForward": "ignore"
+        }
+    },
+    // Use 'postCreateCommand' to run commands after the container is created
+    "postCreateCommand": "pip install --upgrade pip && echo 'Dev container ready!'",
+    // Configure tool-specific properties
+    "remoteUser": "root",
+    // Mount local workspace
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    ]
+}

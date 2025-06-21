@@ -1,0 +1,32 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Promptly - Interactive AI Prompting Platform
+Brief Overview:
+- An interactive web app that guides users through an iterative decision-tree of clarifying questions to craft and refine AI prompts for any large language model.
+
+Key Goals:
+- Iterative prompt enhancement via AI-generated questions
+- Two UI modes: simple editor with live suggestions and a D3.js decision-tree visualizer
+- User profiles, session sharing, and version history
+- Selection of external target models (e.g., GPT-4, Claude, Llama) with internal refinement on Google Gemini 2.5
+
+Core Features:
+- Session Management: Create/update sessions; store nodes and layouts in MongoDB
+- Q&A Loop: Single-question iterations with predefined or custom answers; loop until final prompt
+- Simple Editor: Side-by-side draft and history, inline autocomplete (Monaco/CodeMirror)
+- Tree Visualizer: Zoomable D3.js graph with branching, editing, influence mapping, and manual layout
+- Collaboration: OAuth2 login, JWT-secured role-based access, GitHub issues import
+
+Advanced & Integrations:
+- Sub-prompt splitting, context injection (files, Jira/Notion), mind-map import/export, spec generation
+
+Tech Stack:
+- Frontend: React, TypeScript, Vite, D3.js, Shadcn UI
+- Backend: Python 3.11, FastAPI, Uvicorn, Docker
+- Database: MongoDB (+ optional PostgreSQL)
+- Auth & AI: OAuth2/JWT, Google Gemini 2.5, OpenAI/GGML
+- DevOps: Docker, GitHub Actions CI/CD
+
