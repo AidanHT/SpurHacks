@@ -9,8 +9,6 @@ Tests cover:
 - HTTP client lifecycle management
 """
 
-import asyncio
-import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 

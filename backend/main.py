@@ -13,8 +13,25 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
+# Import AI service error for global handling
+from backend.services import GeminiServiceError
+
 # Load environment variables
 load_dotenv()
+
+
+def validate_environment():
+    """
+    Validate required environment variables at startup.
+    
+    Raises:
+        ValueError: If any required environment variables are missing
+    """
+    required_vars = ["GEMINI_API_KEY", "MONGODB_URL", "JWT_SECRET_KEY"]
+    missing = [var for var in required_vars if not os.getenv(var)]
+    if missing:
+        raise ValueError(f"Missing required environment variables: {missing}")
+    print(f"✅ Environment validation passed")
 
 # Import rate limiting components
 from backend.core.ratelimit import limiter, DEFAULT_RATE_LIMIT
@@ -28,6 +45,9 @@ async def lifespan(app: FastAPI):
     print(f"📝 Environment: {os.getenv('ENVIRONMENT', 'development')}")
     print(f"🔧 Debug mode: {os.getenv('DEBUG', 'false')}")
     print(f"⚡ Rate-limiting middleware enabled: {DEFAULT_RATE_LIMIT}")
+    
+    # Validate environment variables
+    validate_environment()
     
     # Initialize database
     from backend.core.database import db_manager
@@ -48,6 +68,10 @@ async def lifespan(app: FastAPI):
     # Close Redis connection
     from backend.core.cache import close_redis
     await close_redis()
+    
+    # Close AI service HTTP client
+    from backend.services.ai_internal import cleanup as ai_cleanup
+    await ai_cleanup()
 
 
 # Initialize FastAPI app
@@ -89,6 +113,31 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     )
     response.headers["Retry-After"] = str(exc.retry_after or 60)
     return response
+
+
+# AI service exception handler
+@app.exception_handler(GeminiServiceError)
+async def gemini_service_error_handler(request: Request, exc: GeminiServiceError):
+    """
+    Custom Gemini service error handler.
+    
+    Maps AI service errors to proper HTTP responses.
+    """
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    logger.error(
+        f"Gemini service error {exc.status} for {request.client.host if request.client else 'unknown'} "
+        f"on {request.method} {request.url.path}: {exc.detail}"
+    )
+    
+    # Map internal errors to 502 Bad Gateway for external API issues
+    status_code = 502 if exc.status >= 500 else exc.status
+    
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": f"AI service error: {exc.detail}"}
+    )
 
 # CORS Configuration
 cors_origins: List[str] = [

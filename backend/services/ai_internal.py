@@ -13,7 +13,7 @@ import asyncio
 import logging
 import os
 import random
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 import httpx
 from dotenv import load_dotenv
@@ -24,8 +24,9 @@ load_dotenv()
 # Configure logging
 logger = logging.getLogger(__name__)
 
-# Global HTTP client singleton
+# Global HTTP client singleton with thread-safe access
 _http_client: Optional[httpx.AsyncClient] = None
+_client_lock = asyncio.Lock()
 
 
 class GeminiServiceError(Exception):
@@ -38,10 +39,13 @@ class GeminiServiceError(Exception):
 
 
 async def _get_http_client() -> httpx.AsyncClient:
-    """Get or create the shared HTTP client singleton."""
+    """Get or create the shared HTTP client singleton with thread safety."""
     global _http_client
     if _http_client is None:
-        _http_client = httpx.AsyncClient()
+        async with _client_lock:
+            # Double-check pattern to prevent race conditions
+            if _http_client is None:
+                _http_client = httpx.AsyncClient()
     return _http_client
 
 
@@ -89,7 +93,7 @@ def _log_request_safely(prompt: str, max_log_length: int = 100) -> str:
     return f"{prompt[:max_log_length]}…"
 
 
-async def ask_gemini(payload: dict, *, timeout: float = 30.0) -> dict:
+async def ask_gemini(payload: Dict[str, Any], *, timeout: float = 30.0) -> Dict[str, Any]:
     """
     Send a request to Google Gemini 2.5 API with retry logic.
     
@@ -107,9 +111,8 @@ async def ask_gemini(payload: dict, *, timeout: float = 30.0) -> dict:
         Response dictionary from Gemini API
         
     Raises:
-        GeminiServiceError: On API errors or repeated failures
+        GeminiServiceError: On API errors, repeated failures, or timeouts
         ValueError: On invalid input parameters
-        asyncio.TimeoutError: On request timeout
     """
     # Validate input
     if not isinstance(payload, dict):
