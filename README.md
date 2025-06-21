@@ -119,6 +119,36 @@ promptly/
 └── README.md        # This file
 ```
 
+## 🔐 **Authentication**
+
+The application uses JWT-based authentication with OAuth2 social login support.
+
+### **Available Endpoints**
+- `POST /auth/register` - User registration
+- `POST /auth/jwt/login` - JWT login
+- `GET /auth/jwt/logout` - JWT logout  
+- `GET /auth/google/login` - Google OAuth login
+- `GET /auth/github/login` - GitHub OAuth login
+- `GET /users/me` - Get current user profile
+
+### **Usage Example**
+```bash
+# Register a new user
+curl -X POST "http://localhost:8000/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "securepassword123",
+    "first_name": "John",
+    "last_name": "Doe"
+  }'
+
+# Login to get JWT token
+curl -X POST "http://localhost:8000/auth/jwt/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user@example.com&password=securepassword123"
+```
+
 ## 🤝 **Contributing**
 
 1. Fork the repository

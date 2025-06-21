@@ -22,9 +22,15 @@ async def lifespan(app: FastAPI):
     print("🚀 Promptly API starting up...")
     print(f"📝 Environment: {os.getenv('ENVIRONMENT', 'development')}")
     print(f"🔧 Debug mode: {os.getenv('DEBUG', 'false')}")
+    
+    # Initialize database
+    from backend.core.database import db_manager
+    await db_manager.connect()
+    
     yield
     # Shutdown
     print("👋 Promptly API shutting down...")
+    await db_manager.disconnect()
 
 
 # Initialize FastAPI app
@@ -78,7 +84,56 @@ async def root() -> Dict[str, str]:
     }
 
 
-# Event handlers moved to lifespan context manager above
+# Authentication routes
+from backend.auth import AuthRoutes, google_oauth_client, github_oauth_client, jwt_authentication
+
+# JWT authentication routes
+app.include_router(
+    AuthRoutes.get_auth_router(),
+    prefix="/auth/jwt",
+    tags=["auth"]
+)
+
+# User registration routes
+app.include_router(
+    AuthRoutes.get_register_router(),
+    prefix="/auth",
+    tags=["auth"]
+)
+
+# User management routes
+app.include_router(
+    AuthRoutes.get_users_router(),
+    prefix="/users",
+    tags=["users"]
+)
+
+# OAuth routes
+OAUTH_STATE_SECRET = os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production")
+
+# Google OAuth
+if os.getenv("GOOGLE_CLIENT_ID") and os.getenv("GOOGLE_CLIENT_SECRET"):
+    app.include_router(
+        AuthRoutes.get_oauth_router(
+            google_oauth_client,
+            jwt_authentication,
+            OAUTH_STATE_SECRET,
+        ),
+        prefix="/auth/google",
+        tags=["auth"]
+    )
+
+# GitHub OAuth
+if os.getenv("GITHUB_CLIENT_ID") and os.getenv("GITHUB_CLIENT_SECRET"):
+    app.include_router(
+        AuthRoutes.get_oauth_router(
+            github_oauth_client,
+            jwt_authentication,
+            OAUTH_STATE_SECRET,
+        ),
+        prefix="/auth/github",
+        tags=["auth"]
+    )
 
 
 if __name__ == "__main__":
