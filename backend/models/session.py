@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, Annotated
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, BeforeValidator
+from pydantic import BaseModel, Field, BeforeValidator, validator
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 
@@ -35,6 +35,12 @@ class Session(BaseModel):
     title: Optional[str] = Field(None, max_length=200)
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     
+    # Session-specific fields
+    starter_prompt: Optional[str] = Field(None, max_length=5000)
+    max_questions: int = Field(default=10, ge=1, le=20)
+    target_model: str = Field(default="gpt-4", max_length=50)
+    settings: Dict[str, Any] = Field(default_factory=dict)
+    
     class Config:
         populate_by_name = True
         arbitrary_types_allowed = True
@@ -45,6 +51,39 @@ class SessionCreate(BaseModel):
     """Schema for creating a new session"""
     title: Optional[str] = Field(None, max_length=200)
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    starter_prompt: str = Field(..., min_length=1, max_length=5000)
+    max_questions: int = Field(..., ge=1, le=20)
+    target_model: str = Field(..., min_length=1, max_length=50)
+    settings: Dict[str, Any] = Field(...)
+    
+    @validator('settings')
+    def validate_settings(cls, v):
+        """Validate settings structure"""
+        if not isinstance(v, dict):
+            raise ValueError("Settings must be a dictionary")
+        
+        # Validate required settings fields
+        tone = v.get('tone')
+        word_limit = v.get('wordLimit')
+        
+        if tone is not None and not isinstance(tone, str):
+            raise ValueError("Settings.tone must be a string")
+        if word_limit is not None and not isinstance(word_limit, int):
+            raise ValueError("Settings.wordLimit must be an integer")
+            
+        return v
+    
+    @validator('target_model')
+    def validate_target_model(cls, v):
+        """Validate target model is supported"""
+        supported_models = [
+            'gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo',
+            'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
+            'llama-2-70b', 'llama-2-13b', 'gemini-pro'
+        ]
+        if v not in supported_models:
+            raise ValueError(f"Unsupported target model. Supported models: {', '.join(supported_models)}")
+        return v
 
 
 class SessionUpdate(BaseModel):
@@ -52,6 +91,10 @@ class SessionUpdate(BaseModel):
     title: Optional[str] = Field(None, max_length=200)
     metadata: Optional[Dict[str, Any]] = None
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    starter_prompt: Optional[str] = Field(None, max_length=5000)
+    max_questions: Optional[int] = Field(None, ge=1, le=20)
+    target_model: Optional[str] = Field(None, max_length=50)
+    settings: Optional[Dict[str, Any]] = None
 
 
 class SessionRead(BaseModel):
@@ -62,6 +105,10 @@ class SessionRead(BaseModel):
     updated_at: datetime
     title: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    starter_prompt: Optional[str] = None
+    max_questions: int
+    target_model: str
+    settings: Dict[str, Any]
     
     class Config:
         populate_by_name = True

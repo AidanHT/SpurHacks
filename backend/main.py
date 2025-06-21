@@ -211,6 +211,13 @@ app.include_router(
     tags=["ai"]
 )
 
+# Sessions API router
+from backend.api import sessions_router
+app.include_router(
+    sessions_router,
+    tags=["sessions"]
+)
+
 
 if __name__ == "__main__":
     import uvicorn

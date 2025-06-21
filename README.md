@@ -187,6 +187,86 @@ curl -X POST "http://localhost:8000/auth/jwt/login" \
   -d "username=user@example.com&password=securepassword123"
 ```
 
+## 📝 **Session API**
+
+The Session API provides endpoints for creating and managing AI prompt crafting sessions.
+
+### **Available Endpoints**
+- `POST /sessions` - Create a new session
+- `GET /sessions/{id}` - Get session by ID  
+- `GET /sessions` - List user sessions (with pagination)
+
+### **Usage Examples**
+
+#### **Create a Session**
+```bash
+# Create a new prompt crafting session
+curl -X POST "http://localhost:8000/sessions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "title": "Marketing Campaign Prompt",
+    "starter_prompt": "Create a comprehensive marketing plan for a new SaaS product",
+    "max_questions": 15,
+    "target_model": "gpt-4",
+    "settings": {
+      "tone": "professional",
+      "wordLimit": 1000
+    },
+    "metadata": {
+      "category": "marketing",
+      "priority": "high"
+    }
+  }'
+
+# Response: 201 Created with Location header
+# {
+#   "id": "60f7b1c8e4b0c63f4c8b4567",
+#   "user_id": "60f7b1c8e4b0c63f4c8b4566",
+#   "title": "Marketing Campaign Prompt",
+#   "starter_prompt": "Create a comprehensive marketing plan...",
+#   "max_questions": 15,
+#   "target_model": "gpt-4",
+#   "settings": {"tone": "professional", "wordLimit": 1000},
+#   "created_at": "2023-12-01T12:00:00Z",
+#   "updated_at": "2023-12-01T12:00:00Z"
+# }
+```
+
+#### **Retrieve a Session**
+```bash
+# Get a specific session by ID
+curl -X GET "http://localhost:8000/sessions/60f7b1c8e4b0c63f4c8b4567" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Response: 200 OK with session data
+```
+
+#### **List User Sessions**
+```bash
+# Get all sessions for the authenticated user
+curl -X GET "http://localhost:8000/sessions?limit=10&skip=0" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Response: 200 OK with array of sessions (latest first)
+```
+
+### **Session Creation Fields**
+- **starter_prompt** (required): Initial prompt text (1-5000 characters)
+- **max_questions** (required): Maximum questions allowed (1-20)
+- **target_model** (required): AI model to use (supported: gpt-4, claude-3-opus, etc.)
+- **settings** (required): Configuration object with optional tone and wordLimit
+- **title** (optional): Session title (max 200 characters)
+- **metadata** (optional): Additional metadata dictionary
+
+### **Error Responses**
+- **400**: Invalid request data
+- **401**: Authentication required
+- **403**: Access denied (not session owner)
+- **404**: Session not found
+- **422**: Validation error (invalid fields)
+- **429**: Rate limit exceeded
+
 ## 🤝 **Contributing**
 
 1. Fork the repository
