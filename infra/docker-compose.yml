@@ -29,30 +29,28 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
-    volumes:
-      - ../backend:/app
     networks:
       - promptly-network
 
   # React Frontend Service
-  web:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    container_name: promptly-web
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:8000
-    depends_on:
-      api:
-        condition: service_healthy
-    restart: unless-stopped
-    volumes:
-      - ../frontend:/app
-      - /app/node_modules
-    networks:
-      - promptly-network
+  # web:
+  #   build:
+  #     context: ../frontend
+  #     dockerfile: Dockerfile
+  #   container_name: promptly-web
+  #   ports:
+  #     - "5173:5173"
+  #   environment:
+  #     - VITE_API_URL=http://localhost:8000
+  #   depends_on:
+  #     api:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ../frontend:/app
+  #     - /app/node_modules
+  #   networks:
+  #     - promptly-network
 
   # MongoDB Database Service
   mongo:
