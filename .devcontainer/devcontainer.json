@@ -29,10 +29,11 @@
                 "python.defaultInterpreterPath": "/usr/local/bin/python",
                 "python.linting.enabled": true,
                 "python.linting.pylintEnabled": true,
-                "python.formatting.provider": "black",
-                "python.formatting.blackPath": "/usr/local/bin/black",
                 "python.linting.mypyEnabled": true,
                 "python.analysis.typeCheckingMode": "basic",
+                "[python]": {
+                    "editor.defaultFormatter": "ms-python.black-formatter"
+                },
                 "editor.formatOnSave": true,
                 "editor.codeActionsOnSave": {
                     "source.organizeImports": true

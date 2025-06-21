@@ -39,7 +39,7 @@ Promptly is an interactive web application that guides users through an iterativ
 - **Framework**: FastAPI (Python 3.11)
 - **Server**: Uvicorn
 - **Authentication**: OAuth2 + JWT
-- **AI Integration**: Google Gemini 3.5 (internal), OpenAI/GGML (external)
+- **AI Integration**: Google Gemini 2.5 (internal), OpenAI/GGML (external)
 
 ### **Infrastructure**
 - **Database**: MongoDB (primary), PostgreSQL (optional)
