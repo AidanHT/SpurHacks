@@ -41,14 +41,17 @@ logger = logging.getLogger(__name__)
 class AnswerRequest(BaseModel):
     """Schema for answering a question in a session"""
     nodeId: str = Field(..., description="ObjectId of the node being answered")
-    selected: str = Field(..., min_length=1, max_length=5000, description="User's selected answer")
+    selected: List[str] = Field(..., min_items=1, description="User's selected answer(s) - single item for single/ranking, multiple for multi")
+    isCustomAnswer: Optional[bool] = Field(False, description="Whether this is a custom user answer vs predefined option")
     cancel: Optional[bool] = Field(False, description="Whether to cancel the session")
 
 
 class QuestionResponse(BaseModel):
     """Schema for AI question response"""
     question: str = Field(..., description="The AI-generated question")
-    options: List[str] = Field(..., description="Available answer options")
+    options: List[str] = Field(..., description="Available answer options (2-6 options)")
+    selectionMethod: str = Field(..., description="Selection method: 'single', 'multi', or 'ranking'")
+    allowCustomAnswer: bool = Field(default=True, description="Whether users can provide custom answers")
     nodeId: str = Field(..., description="ID of the created question node")
 
 
@@ -245,30 +248,96 @@ async def answer_question(
                         )
                 
                 # 4. Insert user answer node
+                answer_type = "custom_answer" if answer_data.isCustomAnswer else "answer"
+                # Convert list to string for storage
+                answer_content = "; ".join(answer_data.selected) if len(answer_data.selected) > 1 else answer_data.selected[0]
                 user_node = await insert_user_answer_node(
-                    db, db_session, session_object_id, node_object_id, answer_data.selected
+                    db, db_session, session_object_id, node_object_id, answer_content, answer_type
                 )
                 
                 # 5. Build context chain
                 context_chain = await build_context_chain(db, session_object_id, user_node.id)
-                context_string = truncate_context_for_tokens(context_chain)
+                context_string = truncate_context_for_tokens(context_chain, session.starter_prompt)
                 
                 # 6. Make AI call
                 ai_payload = {
-                    "prompt": f"""You are helping craft an AI prompt through iterative questions. Based on this conversation:
+                    "prompt": f"""# AI Prompt Crafting Assistant
 
+You are the foremost authority on prompt engineering. As the best prompt engineer in the world, you are helping users iteratively refine their prompts to achieve optimal results. Your goal is to transform their vague initial concept into a highly effective, laser-precise,well-structured prompt tailored specifically for their target AI model.
+
+## Context Analysis
 {context_string}
 
-Either ask ONE clarifying question with 2-4 specific options, or provide the final refined prompt.
+## Your Mission
+Analyze the user's needs and conversation history above. You have two possible response modes:
 
-For a question, respond with JSON:
-{{"question": "Your question here?", "options": ["Option 1", "Option 2", "Option 3"]}}
+### Mode 1: Ask a Clarifying Question
+If you need more information to create the perfect prompt, ask **ONE strategic clarifying question** that will significantly improve the final result. Your question should:
+- Target the most critical missing information
+- Offer 2-6 specific, well-crafted options that cover different likely scenarios. Consider hundreds of possible options and choose the most relevant ones.
+- Consider the target model's strengths and optimal input format
+- Build upon previous conversation context
+- Be concise and to the point
 
-For the final prompt, respond with JSON:
-{{"finalPrompt": "The complete, refined prompt ready for use"}}
+**Selection Methods Available:**
+Choose the most appropriate method based on the nature of your question:
 
-Target model: {session.target_model}
-Settings: {session.settings}"""
+- **"single"**: User selects ONE option only. Use when options are mutually exclusive or contradictory
+  - Examples: "What tone should your content have?" (Professional, Casual, Humorous)
+  - Examples: "What's your primary goal?" (Educate, Entertain, Persuade)
+  
+- **"multi"**: User can select MULTIPLE options. Use when multiple elements can coexist and enhance the prompt
+  - Examples: "What features should be included?" (Authentication, Database, API, Frontend)
+  - Examples: "Which topics should be covered?" (Security, Performance, Scalability, Documentation)
+  
+- **"ranking"**: User ranks options by preference/priority. Use when order or priority matters for the final prompt
+  - Examples: "Please rank these priorities in order:" (Speed, Accuracy, Cost-effectiveness, User Experience)
+  - Examples: "Order these aspects by importance:" (Content Quality, SEO Optimization, Visual Appeal)
+
+**Response Format for Questions:**
+```json
+{{
+    "question": "What specific aspect would help craft the most effective prompt?",
+    "options": ["Option 1", "Option 2", "Option 3", ...],
+    "selectionMethod": "single",
+    "allowCustomAnswer": true
+}}
+```
+
+**Always set `"allowCustomAnswer": true`** as users can always provide their own input. The selection method applies to both predefined options AND any custom user input.
+
+### Mode 2: Deliver the Final Prompt
+If you have sufficient information, provide a complete, expertly-crafted prompt that:
+- Is optimized specifically for **{session.target_model}**
+- Incorporates all gathered context and preferences
+- Follows best practices for the target model
+- Includes clear instructions, format specifications, and examples where beneficial
+- Addresses the user's core objective effectively
+
+**Response Format for Final Prompt:**
+```json
+{{
+    "finalPrompt": "Your expertly crafted, ready-to-use prompt here..."
+}}
+```
+
+## Target Configuration
+- **Model**: {session.target_model}
+- **Settings**: {session.settings}
+- **User Requirements**: Consider tone, length, style, and specific constraints mentioned
+
+## Decision Criteria
+Choose Mode 1 (question) if:
+- Critical information is missing that would significantly improve the prompt
+- The user's intent needs clarification
+- Target model-specific optimizations require more details
+
+Choose Mode 2 (final prompt) if:
+- You have sufficient context to create an excellent prompt
+- Further questions would provide diminishing returns
+- The user has provided comprehensive guidance
+
+Respond with **only** the JSON format - no additional text or explanations."""
                 }
                 
                 try:
@@ -286,11 +355,13 @@ Settings: {session.settings}"""
                     )
                 
                 # 7. Parse AI response
-                question, options, final_prompt = await parse_ai_response(raw_response)
+                question, options, selection_method, allow_custom_answer, final_prompt = await parse_ai_response(raw_response)
                 
                 if question and options:
                     # AI provided a question
-                    question_content = f"Question: {question}\nOptions: {', '.join(options)}"
+                    custom_info = "\nAllows custom answer: Yes" if allow_custom_answer else "\nAllows custom answer: No"
+                    selection_info = f"\nSelection method: {selection_method}"
+                    question_content = f"Question: {question}\nOptions: {', '.join(options)}{selection_info}{custom_info}"
                     ai_node = await insert_ai_node(
                         db, db_session, session_object_id, user_node.id,
                         question_content, "question", raw_response
@@ -302,6 +373,8 @@ Settings: {session.settings}"""
                     return QuestionResponse(
                         question=question,
                         options=options,
+                        selectionMethod=selection_method or "single",
+                        allowCustomAnswer=allow_custom_answer or True,
                         nodeId=str(ai_node.id)
                     )
                 

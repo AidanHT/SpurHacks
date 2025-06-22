@@ -189,106 +189,123 @@ async def build_context_chain(
     return context_chain
 
 
-def truncate_context_for_tokens(context_chain: List[Dict[str, Any]], max_chars: int = 2000) -> str:
+def truncate_context_for_tokens(
+    context_chain: List[Dict[str, Any]], 
+    starter_prompt: str = "", 
+    max_chars: int = 2000
+) -> str:
     """
-    Build context string and truncate if needed to stay within token limits
+    Build context string with initial context and truncate if needed to stay within token limits
     
     Args:
         context_chain: List of context entries
+        starter_prompt: Initial user context/prompt to include
         max_chars: Maximum characters allowed (default: 2000)
         
     Returns:
-        Formatted context string
+        Formatted context string with initial context section
     """
-    if not context_chain:
+    # Start with initial context section if provided
+    context_sections = []
+    
+    if starter_prompt and starter_prompt.strip():
+        initial_section = f"=== INITIAL USER CONTEXT ===\n{starter_prompt.strip()}\n"
+        context_sections.append(initial_section)
+    
+    # Add conversation history section if we have entries
+    if context_chain:
+        conversation_parts = []
+        for entry in context_chain:
+            role = entry["role"]
+            content = entry["content"]
+            entry_type = entry.get("type", "")
+            
+            if entry_type:
+                conversation_parts.append(f"[{role}:{entry_type}] {content}")
+            else:
+                conversation_parts.append(f"[{role}] {content}")
+        
+        if conversation_parts:
+            conversation_section = "=== CONVERSATION HISTORY ===\n" + "\n\n".join(conversation_parts)
+            context_sections.append(conversation_section)
+    
+    if not context_sections:
         return ""
     
-    # Build the full context
-    context_parts = []
-    for entry in context_chain:
-        role = entry["role"]
-        content = entry["content"]
-        entry_type = entry.get("type", "")
-        
-        if entry_type:
-            context_parts.append(f"[{role}:{entry_type}] {content}")
-        else:
-            context_parts.append(f"[{role}] {content}")
+    full_context = "\n\n".join(context_sections)
     
-    full_context = "\n\n".join(context_parts)
-    
-    # Truncate if too long, keeping the most recent entries
+    # If within limits, return full context
     if len(full_context) <= max_chars:
         return full_context
     
-    # Try to fit as many recent entries as possible
-    truncated_parts = []
-    current_length = 0
+    # Need to truncate - prioritize initial context, then recent conversation
+    reserved_for_initial = min(len(context_sections[0]) if context_sections else 0, max_chars // 3)
+    available_for_conversation = max_chars - reserved_for_initial - 50  # Reserve space for separators
     
-    for entry in reversed(context_chain):
-        role = entry["role"]
-        content = entry["content"]
-        entry_type = entry.get("type", "")
-        
-        if entry_type:
-            entry_text = f"[{role}:{entry_type}] {content}"
+    # Always include initial context if present
+    truncated_sections = []
+    if starter_prompt and starter_prompt.strip():
+        if len(context_sections[0]) <= reserved_for_initial:
+            truncated_sections.append(context_sections[0])
         else:
-            entry_text = f"[{role}] {content}"
-        
-        if current_length + len(entry_text) + 2 > max_chars:  # +2 for \n\n
-            break
-        
-        truncated_parts.append(entry_text)
-        current_length += len(entry_text) + 2
+            # Truncate initial context if too long
+            truncated_initial = context_sections[0][:reserved_for_initial - 15] + "…[truncated]\n"
+            truncated_sections.append(truncated_initial)
     
-    if not truncated_parts:
-        # If even the last entry is too long, truncate it
-        if not context_chain:
-            return "…[truncated]"
+    # Try to fit recent conversation entries
+    if context_chain and available_for_conversation > 100:
+        conversation_parts = []
+        current_length = 0
+        header_text = "=== CONVERSATION HISTORY ===\n"
+        
+        for entry in reversed(context_chain):
+            role = entry["role"]
+            content = entry["content"]
+            entry_type = entry.get("type", "")
             
-        last_entry = context_chain[-1]
-        role = last_entry["role"]
-        content = last_entry["content"]
-        entry_type = last_entry.get("type", "")
+            if entry_type:
+                entry_text = f"[{role}:{entry_type}] {content}"
+            else:
+                entry_text = f"[{role}] {content}"
+            
+            if current_length + len(entry_text) + 2 > available_for_conversation - len(header_text):
+                break
+            
+            conversation_parts.append(entry_text)
+            current_length += len(entry_text) + 2
         
-        prefix = f"[{role}:{entry_type}] " if entry_type else f"[{role}] "
-        available_chars = max_chars - len(prefix) - 12  # 12 for "…[truncated]"
-        
-        if available_chars > 0:
-            truncated_content = content[:available_chars] + "…[truncated]"
-            return f"{prefix}{truncated_content}"
-        else:
-            return f"{prefix}…[truncated]"
+        if conversation_parts:
+            conversation_parts.reverse()  # Back to chronological order
+            conversation_section = header_text + "\n\n".join(conversation_parts)
+            truncated_sections.append(conversation_section)
     
-    # Reverse back to chronological order
-    truncated_parts.reverse()
-    return "\n\n".join(truncated_parts)
+    return "\n\n".join(truncated_sections) if truncated_sections else "…[truncated]"
 
 
-async def parse_ai_response(raw_response: Dict[str, Any]) -> Tuple[Optional[str], Optional[List[str]], Optional[str]]:
+async def parse_ai_response(raw_response: Dict[str, Any]) -> Tuple[Optional[str], Optional[List[str]], Optional[str], Optional[bool], Optional[str]]:
     """
-    Parse AI response to extract question, options, or final prompt
+    Parse AI response to extract question, options, selection method, custom answer flag, or final prompt
     
     Args:
         raw_response: Raw response from Gemini API
         
     Returns:
-        Tuple of (question, options, final_prompt)
+        Tuple of (question, options, selection_method, allow_custom_answer, final_prompt)
     """
     try:
         # Extract text from Gemini response format
         candidates = raw_response.get("candidates", [])
         if not candidates:
-            return None, None, "No response generated"
+            return None, None, None, None, "No response generated"
         
         content = candidates[0].get("content", {})
         parts = content.get("parts", [])
         if not parts:
-            return None, None, "No content in response"
+            return None, None, None, None, "No content in response"
         
         text = parts[0].get("text", "").strip()
         if not text:
-            return None, None, "Empty response"
+            return None, None, None, None, "Empty response"
         
         # Try to parse as JSON first
         try:
@@ -298,26 +315,42 @@ async def parse_ai_response(raw_response: Dict[str, Any]) -> Tuple[Optional[str]
             if "question" in parsed and "options" in parsed:
                 question = parsed["question"]
                 options = parsed["options"]
+                selection_method = parsed.get("selectionMethod", "single")
+                allow_custom = parsed.get("allowCustomAnswer", True)  # Default to True now
                 
                 if isinstance(question, str) and isinstance(options, list):
-                    return question, options, None
+                    # Validate options length (2-6 as requested)
+                    if len(options) < 2 or len(options) > 6:
+                        logger.warning(f"AI provided {len(options)} options, expected 2-6. Truncating/padding.")
+                        if len(options) > 6:
+                            options = options[:6]
+                        elif len(options) < 2:
+                            options.extend(["Other", "Not sure"][:2 - len(options)])
+                    
+                    # Validate selection method
+                    valid_methods = ["single", "multi", "ranking"]
+                    if selection_method not in valid_methods:
+                        logger.warning(f"AI provided invalid selection method '{selection_method}', defaulting to 'single'")
+                        selection_method = "single"
+                    
+                    return question, options, selection_method, allow_custom, None
             
             # Check for final prompt format
             if "finalPrompt" in parsed:
                 final_prompt = parsed["finalPrompt"]
                 if isinstance(final_prompt, str):
-                    return None, None, final_prompt
+                    return None, None, None, None, final_prompt
                     
         except json.JSONDecodeError:
             # Not JSON, treat as final prompt
             pass
         
         # Default: treat as final prompt
-        return None, None, text
+        return None, None, None, None, text
         
     except Exception as e:
         logger.error(f"Error parsing AI response: {e}")
-        return None, None, f"Error parsing response: {str(e)}"
+        return None, None, None, None, f"Error parsing response: {str(e)}"
 
 
 async def insert_user_answer_node(
@@ -325,7 +358,8 @@ async def insert_user_answer_node(
     session: AsyncIOMotorClientSession,
     session_id: ObjectId,
     parent_id: ObjectId,
-    answer: str
+    answer: str,
+    answer_type: str = "answer"
 ) -> Node:
     """
     Insert user answer node
@@ -336,6 +370,7 @@ async def insert_user_answer_node(
         session_id: Session ObjectId
         parent_id: Parent node ObjectId
         answer: User's answer text
+        answer_type: Type of answer ("answer" or "custom_answer")
         
     Returns:
         Created Node object
@@ -345,7 +380,7 @@ async def insert_user_answer_node(
         parent_id=parent_id,
         role="user",
         content=answer,
-        type="answer",
+        type=answer_type,
         created_at=datetime.now(timezone.utc)
     )
     
