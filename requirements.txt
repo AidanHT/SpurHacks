@@ -1,0 +1,32 @@
+# Promptly Backend Requirements
+# Generated from pyproject.toml dependencies
+
+# Core FastAPI and web framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Database and storage
+motor==3.3.2
+pymongo==4.5.0
+redis==5.0.1
+minio==7.2.0
+
+# Authentication and validation
+pydantic[email]==2.5.0
+fastapi-users[mongodb,jwt,oauth]==12.1.2
+argon2-cffi==23.1.0
+python-jose[cryptography]==3.3.0
+
+# OAuth integration
+httpx-oauth==0.16.1
+httpx==0.28.1
+
+# Rate limiting and utilities
+slowapi==0.1.9
+python-dotenv==1.0.0
+
+# Development and testing dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+ruff==0.1.6
+mypy==1.7.1 
