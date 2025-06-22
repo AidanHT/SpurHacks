@@ -32,7 +32,7 @@ export default function SignUpPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/auth/register', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,6 +40,7 @@ export default function SignUpPage() {
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
+          username: formData.email, // Use email as username for now
           first_name: formData.firstName,
           last_name: formData.lastName,
         }),

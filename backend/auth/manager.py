@@ -11,8 +11,8 @@ from typing import Optional
 from fastapi import Depends, Request
 from fastapi_users import BaseUserManager, StringIDMixin
 
-from backend.models.user import User, UserCreate
-from backend.core.database import get_user_db
+from models.user import User, UserCreate
+from core.database import get_user_db
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class UserManager(StringIDMixin, BaseUserManager[User, str]):
         password = user_dict.pop("password")
         
         # Use the password manager from models
-        from backend.models.user import password_manager
+        from models.user import password_manager
         user_dict["hashed_password"] = password_manager.hash_password(password)
         user_dict["id"] = str(uuid.uuid4())
         

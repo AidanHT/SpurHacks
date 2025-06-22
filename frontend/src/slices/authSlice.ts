@@ -58,34 +58,43 @@ export const loginAsync = createAsyncThunk(
     }
 );
 
+// Note: FastAPI Users doesn't support refresh tokens by default
+// This is a placeholder for future implementation or custom JWT refresh logic
 export const refreshTokenAsync = createAsyncThunk(
     'auth/refreshToken',
+    async (_, { rejectWithValue }) => {
+        // For now, just reject since FastAPI Users doesn't support refresh tokens
+        return rejectWithValue('Token refresh not supported. Please log in again.');
+    }
+);
+
+export const fetchUserProfileAsync = createAsyncThunk(
+    'auth/fetchProfile',
     async (_, { getState, rejectWithValue }) => {
         const state = getState() as { auth: AuthState };
-        const refreshToken = state.auth.refreshToken;
+        const accessToken = state.auth.accessToken;
 
-        if (!refreshToken) {
-            return rejectWithValue('No refresh token available');
+        if (!accessToken) {
+            return rejectWithValue('No access token available');
         }
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/jwt/refresh`, {
-                method: 'POST',
+            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/users/me`, {
+                method: 'GET',
                 headers: {
+                    'Authorization': `Bearer ${accessToken}`,
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${refreshToken}`
                 },
-                body: JSON.stringify({ refresh_token: refreshToken }),
             });
 
             if (!response.ok) {
-                throw new Error('Token refresh failed');
+                throw new Error('Failed to fetch user profile');
             }
 
-            const data = await response.json();
-            return { accessToken: data.access_token };
+            const profile = await response.json();
+            return profile;
         } catch (error) {
-            return rejectWithValue(error instanceof Error ? error.message : 'Token refresh failed');
+            return rejectWithValue(error instanceof Error ? error.message : 'Failed to fetch user profile');
         }
     }
 );
@@ -164,28 +173,41 @@ const authSlice = createSlice({
                 state.status = 'failed';
                 state.error = action.payload as string;
             })
-            // Token refresh
+            // Token refresh (placeholder - not supported by FastAPI Users)
             .addCase(refreshTokenAsync.pending, (state) => {
                 state.status = 'refreshing';
                 state.error = null;
             })
-            .addCase(refreshTokenAsync.fulfilled, (state, action) => {
+            .addCase(refreshTokenAsync.fulfilled, (state) => {
+                // This case won't be reached with current implementation
                 state.status = 'idle';
-                state.accessToken = action.payload.accessToken;
                 state.error = null;
-
-                // Persist new token to localStorage
-                localStorage.setItem('promptly_access_token', action.payload.accessToken);
             })
             .addCase(refreshTokenAsync.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload as string;
-                // Clear tokens on refresh failure (likely expired)
+                // Clear tokens on refresh failure
                 state.accessToken = null;
                 state.refreshToken = null;
                 localStorage.removeItem('promptly_access_token');
                 localStorage.removeItem('promptly_refresh_token');
                 localStorage.removeItem('promptly_user_profile');
+            })
+            // Fetch profile
+            .addCase(fetchUserProfileAsync.pending, (state) => {
+                state.status = 'loading';
+            })
+            .addCase(fetchUserProfileAsync.fulfilled, (state, action) => {
+                state.status = 'idle';
+                state.profile = action.payload;
+                state.error = null;
+
+                // Persist profile to localStorage
+                localStorage.setItem('promptly_user_profile', JSON.stringify(action.payload));
+            })
+            .addCase(fetchUserProfileAsync.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload as string;
             });
     },
 });

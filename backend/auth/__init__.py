@@ -16,8 +16,8 @@ from fastapi_users.authentication.strategy import JWTStrategy
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.github import GitHubOAuth2
 
-from backend.core.database import get_user_db
-from backend.models.user import User, UserCreate, UserRead, UserUpdate
+from core.database import get_user_db
+from models.user import User, UserCreate, UserRead, UserUpdate
 
 
 # JWT Configuration
@@ -73,7 +73,7 @@ current_superuser = fastapi_users.current_user(active=True, superuser=True)
 
 async def get_user_manager(user_db=Depends(get_user_db)):
     """Get user manager instance"""
-    from backend.auth.manager import UserManager
+    from auth.manager import UserManager
     
     yield UserManager(user_db)
 

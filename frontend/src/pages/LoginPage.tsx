@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
-import { loginAsync } from '../slices/authSlice';
+import { loginAsync, fetchUserProfileAsync } from '../slices/authSlice';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -23,6 +23,8 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await dispatch(loginAsync(formData)).unwrap();
+      // Fetch user profile after successful login
+      await dispatch(fetchUserProfileAsync()).unwrap();
       navigate('/app');
     } catch (error) {
       // Error is handled by the slice

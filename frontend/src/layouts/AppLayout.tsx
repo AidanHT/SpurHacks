@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Routes, Route } from 'react-router-dom';
+import SessionsList from '../components/SessionsList';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { logout } from '../slices/authSlice';
 import { useTheme } from '../providers/ThemeProvider';
@@ -153,53 +154,105 @@ export default function AppLayout() {
         {/* Page content */}
         <main className="p-6">
           <div className="max-w-7xl mx-auto">
-            {/* Placeholder content */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                Welcome to Promptly!
-              </h2>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Your AI prompt crafting workspace is ready. Start creating better prompts with guided iteration and visual exploration.
-              </p>
-              
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <Routes>
+              <Route index element={
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                    Welcome to Promptly!
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300 mb-6">
+                    Your AI prompt crafting workspace is ready. Start creating better prompts with guided iteration and visual exploration.
+                  </p>
+                  
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        Create New Session
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+                        Start a new prompt crafting session with AI guidance.
+                      </p>
+                      <Link 
+                        to="/app/sessions/new"
+                        className="block w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors text-center"
+                      >
+                        New Session
+                      </Link>
+                    </div>
+
+                    <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        Recent Sessions
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+                        Continue working on your recent prompt sessions.
+                      </p>
+                      <Link 
+                        to="/app/sessions"
+                        className="block w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors text-center"
+                      >
+                        View Sessions
+                      </Link>
+                    </div>
+
+                    <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                        Documentation
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
+                        Learn how to craft better prompts with our guides.
+                      </p>
+                      <a 
+                        href="https://docs.promptly.ai"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors text-center"
+                      >
+                        Learn More
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              } />
+              <Route path="sessions" element={
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+                    Sessions
+                  </h2>
+                  <SessionsList />
+                </div>
+              } />
+              <Route path="sessions/new" element={
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
                     Create New Session
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
-                    Start a new prompt crafting session with AI guidance.
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    Session creation form will be implemented here.
                   </p>
-                  <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
-                    New Session
-                  </button>
                 </div>
-
-                <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    Recent Sessions
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
-                    Continue working on your recent prompt sessions.
+              } />
+              <Route path="settings" element={
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                    Settings
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    Application settings will be available here.
                   </p>
-                  <button className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
-                    View Sessions
-                  </button>
                 </div>
-
-                <div className="p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    Documentation
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">
-                    Learn how to craft better prompts with our guides.
+              } />
+              <Route path="profile" element={
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                    Profile
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    User profile settings will be available here.
                   </p>
-                  <button className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
-                    Learn More
-                  </button>
                 </div>
-              </div>
-            </div>
+              } />
+            </Routes>
           </div>
         </main>
       </div>

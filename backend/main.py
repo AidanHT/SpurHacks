@@ -4,8 +4,12 @@ Interactive AI Prompting Platform
 """
 
 import os
+import sys
 from contextlib import asynccontextmanager
 from typing import Dict, List
+
+# Add current directory to Python path for module imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +18,13 @@ from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
 # Import AI service error for global handling
-from backend.services.ai_internal import GeminiServiceError
+try:
+    from services.ai_internal import GeminiServiceError
+except ImportError:
+    class GeminiServiceError(Exception):
+        def __init__(self, status: int, detail: str):
+            self.status = status
+            self.detail = detail
 
 # Load environment variables
 load_dotenv()
@@ -27,14 +37,19 @@ def validate_environment():
     Raises:
         ValueError: If any required environment variables are missing
     """
-    required_vars = ["GEMINI_API_KEY", "MONGODB_URL", "JWT_SECRET_KEY"]
+    required_vars = ["MONGODB_URL", "JWT_SECRET_KEY"]
     missing = [var for var in required_vars if not os.getenv(var)]
+    
+    # GEMINI_API_KEY is optional for core functionality but needed for AI features
+    if not os.getenv("GEMINI_API_KEY"):
+        print("⚠️  WARNING: GEMINI_API_KEY not set. AI features will be disabled.")
+    
     if missing:
         raise ValueError(f"Missing required environment variables: {missing}")
     print(f"✅ Environment validation passed")
 
 # Import rate limiting components
-from backend.core.ratelimit import limiter, DEFAULT_RATE_LIMIT
+from core.ratelimit import limiter, DEFAULT_RATE_LIMIT
 
 
 @asynccontextmanager
@@ -50,13 +65,13 @@ async def lifespan(app: FastAPI):
     validate_environment()
     
     # Initialize database
-    from backend.core.database import db_manager
+    from core.database import db_manager
     await db_manager.connect()
     
     # Initialize models (create indexes)
-    from backend.models import init_models
+    from models import init_models
     database = db_manager.database
-    if database:
+    if database is not None:
         await init_models(database)
         print("📊 Models initialized with indexes")
     
@@ -66,12 +81,15 @@ async def lifespan(app: FastAPI):
     await db_manager.disconnect()
     
     # Close Redis connection
-    from backend.core.cache import close_redis
+    from core.cache import close_redis
     await close_redis()
     
     # Close AI service HTTP client
-    from backend.services.ai_internal import cleanup as ai_cleanup
-    await ai_cleanup()
+    try:
+        from services.ai_internal import cleanup as ai_cleanup
+        await ai_cleanup()
+    except ImportError:
+        pass
 
 
 # Initialize FastAPI app
@@ -181,7 +199,7 @@ async def root() -> Dict[str, str]:
 
 
 # Authentication routes
-from backend.auth import AuthRoutes, google_oauth_client, github_oauth_client, jwt_authentication
+from auth import AuthRoutes, google_oauth_client, github_oauth_client, jwt_authentication
 
 # JWT authentication routes
 app.include_router(
@@ -261,12 +279,18 @@ app.include_router(
 )
 
 # Session management routes
-from backend.api.sessions import router as sessions_router
-app.include_router(sessions_router, prefix="/api")
+try:
+    from api.sessions import router as sessions_router
+    app.include_router(sessions_router, prefix="/api")
+except ImportError:
+    print("⚠️ Sessions router not available")
 
 # File upload routes
-from backend.api.files import router as files_router
-app.include_router(files_router, prefix="/api")
+try:
+    from api.files import router as files_router
+    app.include_router(files_router, prefix="/api")
+except ImportError:
+    print("⚠️ Files router not available")
 
 
 if __name__ == "__main__":

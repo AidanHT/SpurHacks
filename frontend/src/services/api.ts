@@ -43,6 +43,65 @@ export const api = createApi({
             query: (sessionId) => `/api/sessions/${sessionId}`,
             providesTags: (_result, _error, sessionId) => [{ type: 'Session', id: sessionId }],
         }),
+
+        // Session management endpoints
+        createSession: builder.mutation<any, {
+            title?: string;
+            starter_prompt: string;
+            max_questions?: number;
+            target_model?: string;
+            settings?: any;
+        }>({
+            query: (sessionData) => ({
+                url: '/api/sessions',
+                method: 'POST',
+                body: sessionData,
+            }),
+            invalidatesTags: ['Session'],
+        }),
+
+        answerQuestion: builder.mutation<any, {
+            sessionId: string;
+            nodeId: string;
+            selected: string[];
+            isCustomAnswer?: boolean;
+            cancel?: boolean;
+        }>({
+            query: ({ sessionId, ...answerData }) => ({
+                url: `/api/sessions/${sessionId}/answer`,
+                method: 'POST',
+                body: answerData,
+            }),
+            invalidatesTags: (_result, _error, { sessionId }) => [
+                { type: 'Session', id: sessionId },
+                'Session'
+            ],
+        }),
+
+        // File upload endpoints
+        uploadFile: builder.mutation<any, {
+            file: File;
+            sessionId?: string;
+        }>({
+            query: ({ file, sessionId }) => {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const url = sessionId
+                    ? `/api/files?session_id=${sessionId}`
+                    : '/api/files';
+
+                return {
+                    url,
+                    method: 'POST',
+                    body: formData,
+                };
+            },
+        }),
+
+        getFileInfo: builder.query<any, string>({
+            query: (fileId) => `/api/files/${fileId}`,
+        }),
     }),
 });
 
@@ -52,4 +111,8 @@ export const {
     useGetCurrentUserQuery,
     useGetSessionsQuery,
     useGetSessionQuery,
+    useCreateSessionMutation,
+    useAnswerQuestionMutation,
+    useUploadFileMutation,
+    useGetFileInfoQuery,
 } = api; 
