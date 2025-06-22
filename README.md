@@ -763,6 +763,248 @@ backend/
 - JWT token handling
 - Session ownership
 
+## 🎨 **Frontend**
+
+The Promptly frontend is a modern React application built with TypeScript, Vite, and Tailwind CSS.
+
+### **Tech Stack**
+- **Framework**: React 18 + TypeScript
+- **Build Tool**: Vite for fast development and optimized builds
+- **Styling**: Tailwind CSS with dark mode support
+- **State Management**: Redux Toolkit with RTK Query
+- **Routing**: React Router DOM v6
+- **Icons**: Heroicons
+- **Development**: ESLint, Prettier, Hot Module Replacement
+
+### **Getting Started**
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### **Development Scripts**
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite dev server at http://localhost:5173 |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build |
+| `npm run lint` | Run ESLint checks |
+| `npm run lint:fix` | Fix ESLint issues automatically |
+| `npm run format` | Format code with Prettier |
+| `npm run type-check` | Run TypeScript type checking |
+
+### **Project Structure**
+
+```
+frontend/
+├── public/
+│   └── logo.png              # Brand logo asset
+├── src/
+│   ├── assets/               # Static assets (images, fonts)
+│   ├── hooks/                # Custom React hooks
+│   │   └── redux.ts          # Typed Redux hooks
+│   ├── layouts/              # Page layout components
+│   │   └── AppLayout.tsx     # Main authenticated app layout
+│   ├── pages/                # Page components
+│   │   ├── HomePage.tsx      # Landing page
+│   │   ├── LoginPage.tsx     # Authentication page
+│   │   └── SignUpPage.tsx    # Registration page
+│   ├── providers/            # React context providers
+│   │   └── ThemeProvider.tsx # Dark/light mode provider
+│   ├── routes/               # Route protection
+│   │   └── ProtectedRoute.tsx# Auth-protected routes
+│   ├── services/             # API integration
+│   │   └── api.ts            # RTK Query API definitions
+│   ├── slices/               # Redux slices
+│   │   ├── authSlice.ts      # Authentication state
+│   │   ├── sessionsSlice.ts  # Session management
+│   │   └── nodesSlice.ts     # Node/tree management
+│   ├── utils/                # Utility functions
+│   ├── App.tsx               # Main app component
+│   ├── main.tsx              # React entry point
+│   ├── store.ts              # Redux store configuration
+│   └── index.css             # Global styles & Tailwind
+├── .env                      # Environment variables
+├── package.json              # Dependencies & scripts
+├── tailwind.config.js        # Tailwind configuration
+├── tsconfig.json             # TypeScript configuration
+└── vite.config.ts            # Vite configuration
+```
+
+### **Features**
+
+#### **🏠 Landing Page**
+- Beautiful, responsive homepage with project overview
+- Dark/light/system theme support
+- Call-to-action buttons for signup and login
+- Feature highlights and value proposition
+
+#### **🔐 Authentication**
+- Login and registration forms
+- Validation and error handling
+- JWT token management with localStorage persistence
+- Automatic token refresh handling
+- Protected route redirection
+
+#### **📱 Responsive Layout**
+- Mobile-first responsive design
+- Sidebar navigation with hamburger menu
+- Profile dropdown with user management
+- Theme toggle in header
+- Consistent branding across all pages
+
+#### **🎨 Design System**
+- Consistent color palette based on brand colors
+- Dark mode support throughout
+- Accessible components with proper ARIA labels
+- Tailwind CSS utility classes
+- Custom CSS variables for theming
+
+### **Environment Configuration**
+
+Create a `.env` file in the frontend directory:
+
+```env
+# API Configuration
+VITE_API_URL=http://localhost:8000
+VITE_APP_NAME=Promptly
+
+# Development
+VITE_DEV_MODE=true
+
+# Authentication
+VITE_JWT_STORAGE_KEY=jwt-token
+
+# Theme
+VITE_THEME_STORAGE_KEY=promptly-ui-theme
+```
+
+### **Theme Configuration**
+
+The application supports three theme modes:
+- **Light**: Traditional light theme
+- **Dark**: Dark theme for low-light environments  
+- **System**: Automatically follows system preference
+
+Theme state is persisted in localStorage and applied via CSS classes.
+
+### **API Integration**
+
+The frontend uses RTK Query for efficient API communication:
+
+```typescript
+// Example API usage
+import { useGetSessionsQuery } from '../services/api';
+
+function SessionsList() {
+  const { data: sessions, isLoading, error } = useGetSessionsQuery();
+  
+  // Component logic
+}
+```
+
+### **State Management**
+
+Redux Toolkit manages application state:
+
+```typescript
+// Example state usage
+import { useAppSelector, useAppDispatch } from '../hooks/redux';
+import { loginAsync } from '../slices/authSlice';
+
+function LoginForm() {
+  const dispatch = useAppDispatch();
+  const { status, error } = useAppSelector(state => state.auth);
+  
+  const handleLogin = async (credentials) => {
+    await dispatch(loginAsync(credentials));
+  };
+}
+```
+
+### **Development Guidelines**
+
+#### **Code Style**
+- Use TypeScript for all components and utilities
+- Follow ESLint and Prettier configurations
+- Use functional components with hooks
+- Implement proper error boundaries
+- Add comprehensive TypeScript types
+
+#### **Component Structure**
+```typescript
+// Example component structure
+import { useState } from 'react';
+import { useAppSelector } from '../hooks/redux';
+
+interface ComponentProps {
+  title: string;
+  onAction?: () => void;
+}
+
+export default function Component({ title, onAction }: ComponentProps) {
+  const [loading, setLoading] = useState(false);
+  const user = useAppSelector(state => state.auth.profile);
+
+  return (
+    <div className="p-4">
+      <h1 className="text-xl font-bold">{title}</h1>
+      {/* Component JSX */}
+    </div>
+  );
+}
+```
+
+#### **Styling Guidelines**
+- Use Tailwind CSS utility classes
+- Implement responsive design with mobile-first approach
+- Support both light and dark themes
+- Use semantic color classes (primary, secondary, etc.)
+- Follow consistent spacing and typography scales
+
+### **Deployment**
+
+The frontend builds to static files that can be served by any web server:
+
+```bash
+# Build for production
+npm run build
+
+# Files will be in the dist/ directory
+# Deploy dist/ contents to your web server
+```
+
+### **Next Steps**
+
+The current frontend implementation provides:
+- ✅ Complete authentication flow
+- ✅ Responsive layout with dark mode
+- ✅ Redux state management setup
+- ✅ API integration foundation
+- ✅ TypeScript configuration
+- ✅ Development tooling
+
+**Ready for Extension:**
+- Session management interface
+- Visual prompt tree editor (D3.js integration)
+- Real-time collaboration features
+- Advanced prompt editing tools
+- File upload and context injection
+
 ## Contributing
 
 1. Fork the repository

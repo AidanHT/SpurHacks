@@ -5,6 +5,7 @@ Handles user operations like registration, password reset, etc.
 
 import os
 import uuid
+import logging
 from typing import Optional
 
 from fastapi import Depends, Request
@@ -12,6 +13,9 @@ from fastapi_users import BaseUserManager, StringIDMixin
 
 from backend.models.user import User, UserCreate
 from backend.core.database import get_user_db
+
+# Setup logging
+logger = logging.getLogger(__name__)
 
 
 class UserManager(StringIDMixin, BaseUserManager[User, str]):
@@ -23,19 +27,19 @@ class UserManager(StringIDMixin, BaseUserManager[User, str]):
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         """Called after user registration"""
-        print(f"✅ User {user.email} has registered.")
+        logger.info(f"User {user.email} has registered successfully")
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Optional[Request] = None
     ):
         """Called after password reset request"""
-        print(f"🔑 User {user.email} has requested a password reset. Token: {token}")
+        logger.info(f"Password reset requested for user {user.email}")
 
     async def on_after_request_verify(
         self, user: User, token: str, request: Optional[Request] = None
     ):
         """Called after verification request"""
-        print(f"📧 Verification requested for user {user.email}. Token: {token}")
+        logger.info(f"Verification requested for user {user.email}")
 
     async def create(
         self,

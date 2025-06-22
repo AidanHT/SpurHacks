@@ -82,33 +82,47 @@ async def upload_file(
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """
-    Upload a file to MinIO storage and return access information.
+    Upload a file securely to MinIO storage.
     
-    **Request:**
-    - **file**: Multipart file upload (required, max 20 MB)
-    - **session_id**: Optional session ID to link file to (query parameter)
+    **Request Body:**
+    - **file**: File to upload (multipart/form-data)
+    
+    **Query Parameters:**
+    - **session_id**: Optional session ID to link file to session
     
     **Response:**
-    - **fileId**: Unique identifier for the uploaded file
-    - **url**: Presigned URL for file access (valid for 24 hours)
-    - **size**: File size in bytes
-    - **mime**: File MIME type
+    - File metadata with presigned URL for download
+    
+    **Security Features:**
+    - File type validation (blocks dangerous executables)
+    - Size limit enforcement (20 MB)
+    - User ownership verification
+    - Filename sanitization
     
     **Error Codes:**
-    - **400**: Invalid file or dangerous file type
-    - **413**: File exceeds 20 MB limit
+    - **400**: Invalid file type
+    - **413**: File too large
     - **422**: No file provided
-    - **429**: Rate limit exceeded
-    - **500**: Storage service error
     """
+    
     # Validate file is provided
     if not file:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="No file provided"
         )
+
+    # Check content-length header first to prevent reading large files into memory
+    content_length = request.headers.get('content-length')
+    if content_length:
+        content_size = int(content_length)
+        if content_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File exceeds {MAX_FILE_SIZE // (1024*1024)} MB limit"
+            )
     
-    # Check file size
+    # Check file size from UploadFile if available
     if file.size and file.size > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,

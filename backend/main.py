@@ -14,10 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from dotenv import load_dotenv
 
 # Import AI service error for global handling
-try:
-    from backend.services.ai_internal import GeminiServiceError
-except ImportError:
-    from services.ai_internal import GeminiServiceError
+from backend.services.ai_internal import GeminiServiceError
 
 # Load environment variables
 load_dotenv()
