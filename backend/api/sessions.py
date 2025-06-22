@@ -16,6 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 from backend.auth import current_active_user
+from backend.auth.dev_auth import get_auth_dependency
 from backend.models.user import User
 from backend.models.session import Session, SessionCreate, SessionRead
 from backend.core.database import get_database
@@ -72,7 +73,7 @@ class FinalPromptResponse(BaseModel):
 async def create_session(
     request: Request,
     session_data: SessionCreate,
-    current_user: User = Depends(current_active_user),
+    current_user: User = get_auth_dependency(),
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """

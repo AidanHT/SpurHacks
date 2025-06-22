@@ -187,6 +187,121 @@ curl -X POST "http://localhost:8000/auth/jwt/login" \
   -d "username=user@example.com&password=securepassword123"
 ```
 
+## 🎨 **Frontend Getting Started**
+
+The frontend is a modern React application built with Vite, TypeScript, and Tailwind CSS.
+
+### **Quick Start**
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`
+
+## 🎯 **How to Create a New Session via UI**
+
+### **Step-by-Step Guide**
+
+1. **Visit the Landing Page**: Navigate to `http://localhost:5173`
+2. **Click "Create New Session"**: This will take you to the session creation form at `/new`
+3. **Fill Out the Session Form**:
+
+#### **Required Fields**
+- **Starter Prompt**: Describe what you want to accomplish with AI (1-2000 characters)
+  - Real-time character counter with visual feedback
+  - Counter turns red when approaching the 2000 character limit
+
+#### **Optional Configuration**
+- **Session Title**: Give your session a descriptive name for easy identification
+- **Max Questions**: Use the slider to set refinement questions (1-20, default: 10)
+- **Target AI Model**: Choose which model you'll use with the final prompt:
+  - Google Gemini 2.5 (Default)
+  - OpenAI GPT-4
+  - OpenAI GPT-4 Turbo
+  - Anthropic Claude 3 Opus
+  - Anthropic Claude 3 Sonnet
+  - Meta Llama 2 70B
+- **Tone Toggle**: Switch between friendly and formal AI interaction style
+- **Word Limit**: Set target length for your final prompt (25-300 words)
+
+#### **Form Features**
+- **Live Validation**: Form validates input in real-time with debounced character counting (300ms)
+- **Accessibility**: Proper ARIA labels, error messages, and keyboard navigation
+- **Responsive Design**: Mobile-friendly layout with adaptive grid
+- **Visual Feedback**: 
+  - Submit button disabled until form is valid
+  - Character counter color changes based on proximity to limit
+  - Loading states during submission
+
+4. **Submit**: Click "Start Session" to create your session
+5. **Success Feedback**: 
+   - Toast notification confirms session creation
+   - Automatic redirect to `/app/{sessionId}` for the Q&A loop
+
+### **Form Validation Rules**
+- **Starter Prompt**: Required, 1-2000 characters
+- **Max Questions**: 1-20 (slider enforced)
+- **Target Model**: Must select from available options
+- **Word Limit**: 25-300 words (numeric input with min/max validation)
+- **Tone**: Boolean toggle (friendly/formal)
+
+### **Technical Implementation Details**
+
+The new session form uses modern React patterns and libraries:
+
+- **Form Handling**: React Hook Form with Zod schema validation
+- **UI Components**: Custom shadcn/ui components (Button, Form, Input, Textarea, Slider, Select, Switch)
+- **API Integration**: RTK Query mutation for session creation
+- **Notifications**: Toast system for user feedback
+- **Routing**: React Router for navigation
+- **Styling**: Tailwind CSS with CSS variables for theming
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+### **Development Commands**
+- **`npm run dev`** - Start development server on http://localhost:5173
+- **`npm run build`** - Build for production (outputs to `dist/`)
+- **`npm run preview`** - Preview production build locally
+- **`npm run lint`** - Run ESLint for code quality checks
+- **`npm run format`** - Format code with Prettier
+
+### **Frontend Architecture**
+- **Framework**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS with dark/light mode support
+- **State Management**: Redux Toolkit + RTK Query
+- **Routing**: React Router v6
+- **UI Components**: Heroicons + custom components
+- **Code Quality**: ESLint + Prettier with strict TypeScript
+
+### **Project Structure**
+```
+frontend/
+├── src/
+│   ├── main.tsx           # Application entry point
+│   ├── App.tsx            # Root component with routing
+│   ├── routes/            # Route definitions
+│   ├── layouts/           # Layout components
+│   ├── pages/             # Page components
+│   ├── providers/         # Context providers (theme, etc.)
+│   └── store.ts           # Redux store configuration
+├── public/                # Static assets
+├── index.html             # HTML template
+└── vite.config.ts         # Vite configuration
+```
+
 ## 📝 **Session API**
 
 The Session API provides endpoints for creating and managing AI prompt crafting sessions.

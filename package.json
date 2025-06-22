@@ -1,0 +1,21 @@
+{
+  "name": "promptly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interactive AI Prompting Platform",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && python dev_simple.py",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && pip install -e .",
+    "build": "cd frontend && npm run build",
+    "test": "cd frontend && npm test",
+    "clean": "rm -rf frontend/dist frontend/node_modules backend/__pycache__ backend/.pytest_cache"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "workspaces": [
+    "frontend"
+  ]
+} 

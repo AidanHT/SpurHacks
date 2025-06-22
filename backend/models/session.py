@@ -38,7 +38,7 @@ class Session(BaseModel):
     # Session-specific fields
     starter_prompt: Optional[str] = Field(None, max_length=5000)
     max_questions: int = Field(default=10, ge=1, le=20)
-    target_model: str = Field(default="gpt-4", max_length=50)
+    target_model: str = Field(default="gemini-2.5", max_length=50)
     settings: Dict[str, Any] = Field(default_factory=dict)
     status: str = Field(default="active", max_length=20)  # active, completed, cancelled
     
@@ -94,7 +94,7 @@ class SessionCreate(BaseModel):
         supported_models = [
             'gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo',
             'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
-            'llama-2-70b', 'llama-2-13b', 'gemini-pro'
+            'llama-2-70b', 'llama-2-13b', 'gemini-pro', 'gemini-2.5'
         ]
         if v not in supported_models:
             raise ValueError(f"Unsupported target model. Supported models: {', '.join(supported_models)}")
@@ -122,7 +122,7 @@ class SessionUpdate(BaseModel):
         supported_models = [
             'gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo',
             'claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku',
-            'llama-2-70b', 'llama-2-13b', 'gemini-pro'
+            'llama-2-70b', 'llama-2-13b', 'gemini-pro', 'gemini-2.5'
         ]
         if v not in supported_models:
             raise ValueError(f"Unsupported target model. Supported models: {', '.join(supported_models)}")
