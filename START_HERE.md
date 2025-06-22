@@ -17,32 +17,84 @@
 
 ## 🏃‍♂️ Quick Start (3 Options)
 
-### Option 1: Using Custom Scripts (Recommended)
+### Option 1: 🐳 Docker (Recommended - Full Production Environment)
+
+**Prerequisites:**
+- Docker Desktop installed and running
+- 8GB+ available RAM
+
+**Start Full Production Environment:**
 ```bash
-# Terminal 1 - Backend
+# Clone and navigate to project
+git clone <repository-url>
+cd SpurHacks
+
+# Start all services (production-ready)
+python run_docker.py prod
+
+# Access the application
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+# MinIO Console: http://localhost:9001
+```
+
+**Start Development Environment (with hot reload):**
+```bash
+# Start development mode with hot reload
+python run_docker.py dev
+
+# Access the application
+# Frontend: http://localhost:5173 (hot reload enabled)
+# Backend API: http://localhost:8000 (auto-reload enabled)
+```
+
+**Useful Docker Commands:**
+```bash
+# View logs
+python run_docker.py logs
+
+# Stop all containers
+python run_docker.py stop
+
+# Clean up everything (containers, volumes, images)
+python run_docker.py clean
+
+# Build specific service
+python run_docker.py build --service web
+```
+
+### Option 2: 🖥️ Local Development (Faster iteration)
+
+**Prerequisites:**
+- Python 3.11+
+- Node.js 18+
+- MongoDB running on localhost:27017
+- Redis running on localhost:6379
+
+**Start Services:**
+```bash
+# Terminal 1: Start Backend
 python run_backend.py
 
-# Terminal 2 - Frontend  
+# Terminal 2: Start Frontend
 python run_frontend.py
+
+# Access the application
+# Frontend: http://localhost:5173
+# Backend: http://localhost:8000
 ```
 
-### Option 2: Manual Startup
+### Option 3: 🔨 Hybrid (Docker for Services, Local for Apps)
+
 ```bash
-# Terminal 1 - Backend
-cd backend
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+# Start only databases with Docker
+cd infra
+docker-compose up -d mongo redis minio
 
-# Terminal 2 - Frontend
-cd frontend
-npm run dev
-```
-
-### Option 3: Docker (if Docker Desktop is running)
-```bash
-# Start infrastructure services
-docker-compose -f infra/docker-compose.yml up -d mongo redis minio
-
-# Then run Option 1 or 2 for the app servers
+# Start applications locally
+python run_backend.py   # Terminal 1
+python run_frontend.py  # Terminal 2
 ```
 
 ## 🌐 Access Points
@@ -111,7 +163,7 @@ CORS_ORIGINS=http://localhost:5173,http://localhost:3000
    ```
 
 2. **Frontend Access**:
-   - Open http://localhost:5173
+   - Open http://localhost:5173 (dev) or http://localhost:3000 (prod)
    - Should see the Promptly landing page
 
 3. **API Documentation**:
@@ -130,11 +182,7 @@ CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 - Answer iterative questions
 - View session history
 
-### 3. File Upload (if MinIO running)
-- Upload files for context injection
-- Link files to sessions
-
-### 4. AI Integration (if Gemini API key set)
+### 3. AI Integration (if Gemini API key set)
 - Get AI-generated clarifying questions
 - Refine prompts through conversation
 
