@@ -1,15 +1,19 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
-// Session type - simplified for now
+// Session type matching backend SessionRead model
 export interface Session {
     id: string;
-    title: string;
-    description?: string;
+    user_id: string;
     created_at: string;
     updated_at: string;
-    user_id: string;
-    is_archived: boolean;
+    title?: string;
+    metadata?: Record<string, any>;
+    starter_prompt?: string;
+    max_questions: number;
+    target_model: string;
+    settings: Record<string, any>;
+    status: string;
 }
 
 export interface SessionsState {

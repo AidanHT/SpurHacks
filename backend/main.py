@@ -157,19 +157,41 @@ async def gemini_service_error_handler(request: Request, exc: GeminiServiceError
         content={"detail": f"AI service error: {exc.detail}"}
     )
 
-# CORS Configuration
-cors_origins: List[str] = [
-    origin.strip() 
-    for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
-    if origin.strip()  # Filter out empty strings
-]
+# CORS Configuration - Fixed for frontend compatibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers"
+    ],
+    expose_headers=["*"],
 )
+
+# Add explicit OPTIONS handler for auth routes
+@app.options("/auth/{path:path}")
+async def handle_auth_options():
+    """Handle CORS preflight requests for auth routes"""
+    return {"message": "OK"}
+
+@app.options("/users/{path:path}")
+async def handle_users_options():
+    """Handle CORS preflight requests for users routes"""
+    return {"message": "OK"}
 
 
 @app.get("/ping")
@@ -199,28 +221,39 @@ async def root() -> Dict[str, str]:
 
 
 # Authentication routes
+print("📥 Importing auth module...")
 from auth import AuthRoutes, google_oauth_client, github_oauth_client, jwt_authentication
+print("📋 Auth module imported, registering routes...")
 
 # JWT authentication routes
+print("🔐 Registering JWT auth routes...")
+jwt_router = AuthRoutes.get_auth_router()
 app.include_router(
-    AuthRoutes.get_auth_router(),
+    jwt_router,
     prefix="/auth/jwt",
     tags=["auth"]
 )
+print(f"✅ JWT auth router loaded with {len(jwt_router.routes)} routes")
 
 # User registration routes
+print("📝 Registering user registration routes...")
+register_router = AuthRoutes.get_register_router()
 app.include_router(
-    AuthRoutes.get_register_router(),
+    register_router,
     prefix="/auth",
     tags=["auth"]
 )
+print(f"✅ Registration router loaded with {len(register_router.routes)} routes")
 
 # User management routes
+print("👥 Registering user management routes...")
+users_router = AuthRoutes.get_users_router()
 app.include_router(
-    AuthRoutes.get_users_router(),
+    users_router,
     prefix="/users",
     tags=["users"]
 )
+print(f"✅ Users router loaded with {len(users_router.routes)} routes")
 
 # OAuth routes
 OAUTH_STATE_SECRET = os.getenv("JWT_SECRET_KEY", "dev-secret-change-in-production")
@@ -280,17 +313,37 @@ app.include_router(
 
 # Session management routes
 try:
+    print("📥 Importing sessions router...")
     from api.sessions import router as sessions_router
-    app.include_router(sessions_router, prefix="/api")
-except ImportError:
-    print("⚠️ Sessions router not available")
+    print("📋 Sessions router imported, registering...")
+    app.include_router(sessions_router)  # Router already has /sessions prefix
+    print("✅ Sessions router loaded successfully")
+    print(f"📊 Sessions router has {len(sessions_router.routes)} routes")
+except ImportError as e:
+    print(f"⚠️ Sessions router import error: {e}")
+    import traceback
+    traceback.print_exc()
+except Exception as e:
+    print(f"❌ Error loading sessions router: {e}")
+    import traceback
+    traceback.print_exc()
 
 # File upload routes
 try:
+    print("📥 Importing files router...")
     from api.files import router as files_router
-    app.include_router(files_router, prefix="/api")
-except ImportError:
-    print("⚠️ Files router not available")
+    print("📋 Files router imported, registering...")
+    app.include_router(files_router)  # Router already has /files prefix
+    print("✅ Files router loaded successfully")
+    print(f"📊 Files router has {len(files_router.routes)} routes")
+except ImportError as e:
+    print(f"⚠️ Files router import error: {e}")
+    import traceback
+    traceback.print_exc()
+except Exception as e:
+    print(f"❌ Error loading files router: {e}")
+    import traceback
+    traceback.print_exc()
 
 
 if __name__ == "__main__":

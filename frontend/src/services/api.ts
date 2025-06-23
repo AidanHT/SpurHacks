@@ -20,7 +20,7 @@ const baseQuery = fetchBaseQuery({
 export const api = createApi({
     reducerPath: 'api',
     baseQuery,
-    tagTypes: ['User', 'Session', 'Node'],
+    tagTypes: ['User', 'Session', 'Node', 'File'],
     endpoints: (builder) => ({
         // Health check endpoint
         ping: builder.query<{ ok: boolean }, void>({
@@ -33,27 +33,28 @@ export const api = createApi({
             providesTags: ['User'],
         }),
 
-        // Basic session endpoints
+        // Session endpoints (corrected paths)
         getSessions: builder.query<any[], void>({
-            query: () => '/api/sessions',
+            query: () => '/sessions',
             providesTags: ['Session'],
         }),
 
         getSession: builder.query<any, string>({
-            query: (sessionId) => `/api/sessions/${sessionId}`,
+            query: (sessionId) => `/sessions/${sessionId}`,
             providesTags: (_result, _error, sessionId) => [{ type: 'Session', id: sessionId }],
         }),
 
         // Session management endpoints
         createSession: builder.mutation<any, {
             title?: string;
+            metadata?: Record<string, any>;
             starter_prompt: string;
-            max_questions?: number;
-            target_model?: string;
-            settings?: any;
+            max_questions: number;
+            target_model: string;
+            settings: Record<string, any>;
         }>({
             query: (sessionData) => ({
-                url: '/api/sessions',
+                url: '/sessions',
                 method: 'POST',
                 body: sessionData,
             }),
@@ -68,13 +69,23 @@ export const api = createApi({
             cancel?: boolean;
         }>({
             query: ({ sessionId, ...answerData }) => ({
-                url: `/api/sessions/${sessionId}/answer`,
+                url: `/sessions/${sessionId}/answer`,
                 method: 'POST',
                 body: answerData,
             }),
             invalidatesTags: (_result, _error, { sessionId }) => [
                 { type: 'Session', id: sessionId },
-                'Session'
+                'Session',
+                'Node'
+            ],
+        }),
+
+        // Node endpoints
+        getSessionNodes: builder.query<any[], string>({
+            query: (sessionId) => `/sessions/${sessionId}/nodes`,
+            providesTags: (_result, _error, sessionId) => [
+                { type: 'Node', id: sessionId },
+                'Node'
             ],
         }),
 
@@ -88,8 +99,8 @@ export const api = createApi({
                 formData.append('file', file);
 
                 const url = sessionId
-                    ? `/api/files?session_id=${sessionId}`
-                    : '/api/files';
+                    ? `/files?session_id=${sessionId}`
+                    : '/files';
 
                 return {
                     url,
@@ -97,10 +108,12 @@ export const api = createApi({
                     body: formData,
                 };
             },
+            invalidatesTags: ['File'],
         }),
 
         getFileInfo: builder.query<any, string>({
-            query: (fileId) => `/api/files/${fileId}`,
+            query: (fileId) => `/files/${fileId}`,
+            providesTags: (_result, _error, fileId) => [{ type: 'File', id: fileId }],
         }),
     }),
 });
@@ -113,6 +126,7 @@ export const {
     useGetSessionQuery,
     useCreateSessionMutation,
     useAnswerQuestionMutation,
+    useGetSessionNodesQuery,
     useUploadFileMutation,
     useGetFileInfoQuery,
 } = api; 

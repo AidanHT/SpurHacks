@@ -89,7 +89,25 @@ class AuthRoutes:
     @staticmethod
     def get_register_router():
         """Get user registration routes"""
-        return fastapi_users.get_register_router(UserRead, UserCreate)
+        from fastapi import APIRouter, HTTPException, Depends
+        
+        router = APIRouter()
+        
+        @router.post("/register", response_model=UserRead, status_code=201)
+        async def register(
+            user_create: UserCreate,
+            user_manager=Depends(get_user_manager)
+        ):
+            """Custom registration endpoint"""
+            try:
+                created_user = await user_manager.create(user_create)
+                return UserRead.model_validate(created_user)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
+        
+        return router
     
     @staticmethod
     def get_reset_password_router():

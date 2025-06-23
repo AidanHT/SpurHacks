@@ -23,7 +23,7 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("JWT_SECRET_KEY", "development-secret-key")
 os.environ.setdefault("ENVIRONMENT", "development")
 os.environ.setdefault("DEBUG", "true")
-os.environ.setdefault("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
+os.environ.setdefault("CORS_ORIGINS", "http://localhost:5173")
 
 if __name__ == "__main__":
     print("🚀 Starting Promptly Backend Server...")
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     # Start the server
     try:
         uvicorn.run(
-            "backend.main:app",
+            "main:app",
             host="0.0.0.0", 
             port=8000,
             reload=True,

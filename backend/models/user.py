@@ -58,6 +58,10 @@ class UserCreate(schemas.BaseUserCreate):
     username: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    
+    class Config:
+        str_strip_whitespace = True
+        validate_assignment = True
 
 
 class UserUpdate(schemas.BaseUserUpdate):

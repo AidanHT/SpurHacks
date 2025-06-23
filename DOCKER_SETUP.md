@@ -6,7 +6,7 @@ This document explains the complete Docker containerization setup for both front
 
 | Container | Service | Port | Purpose |
 |-----------|---------|------|---------|
-| `promptly-web` | Frontend | 3000 | React app (Nginx) |
+| `promptly-web` | Frontend | 5173 | React app (Nginx) |
 | `promptly-api` | Backend | 8000 | FastAPI server |
 | `promptly-mongo` | Database | 27017 | MongoDB database |
 | `promptly-redis` | Cache | 6379 | Redis cache/rate limiting |
@@ -20,7 +20,7 @@ This document explains the complete Docker containerization setup for both front
 python run_docker.py prod
 
 # Access applications
-# Frontend: http://localhost:3000
+# Frontend: http://localhost:5173
 # Backend: http://localhost:8000
 # API Docs: http://localhost:8000/docs
 # MinIO Console: http://localhost:9001
@@ -193,7 +193,7 @@ docker ps
 
 # Manually test health endpoints
 curl http://localhost:8000/ping      # Backend
-curl http://localhost:3000/health    # Frontend
+curl http://localhost:5173/health    # Frontend
 ```
 
 ## 📊 Resource Requirements
@@ -255,7 +255,7 @@ docker ps
 ```bash
 # Check what's using ports
 netstat -ano | findstr :8000
-netstat -ano | findstr :3000
+netstat -ano | findstr :5173
 
 # Stop conflicting processes or change ports in docker-compose.yml
 ```

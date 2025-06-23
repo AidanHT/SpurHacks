@@ -69,7 +69,7 @@ def main():
     
     elif args.command == "prod":
         print("🚀 Starting production environment...")
-        print("   - Frontend: http://localhost:3000")
+        print("   - Frontend: http://localhost:5173")
         print("   - Backend: http://localhost:8000")
         print("   - API Docs: http://localhost:8000/docs")
         print()

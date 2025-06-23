@@ -5,6 +5,7 @@ Provides MongoDB async client configuration and dependency injection
 
 import os
 import logging
+import asyncio
 from typing import AsyncGenerator, Optional, Any
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -20,6 +21,7 @@ class DatabaseManager:
     def __init__(self):
         self.client: Optional[AsyncIOMotorClient] = None
         self.database: Optional[AsyncIOMotorDatabase] = None
+        self._connection_lock = asyncio.Lock()
     
     async def connect(self):
         """Create database connection"""
@@ -83,7 +85,7 @@ async def get_db_client() -> AsyncIOMotorClient:
 
 async def get_database() -> AsyncIOMotorDatabase:
     """
-    Dependency to get MongoDB database
+    Dependency to get MongoDB database with race condition protection
     
     Returns:
         AsyncIOMotorDatabase: MongoDB async database
@@ -92,12 +94,15 @@ async def get_database() -> AsyncIOMotorDatabase:
         RuntimeError: If database connection fails
     """
     if db_manager.database is None:
-        try:
-            await db_manager.connect()
-        except Exception as e:
-            logger.error(f"Database connection failed in get_database(): {e}")
-            print(f"❌ Database connection failed in get_database(): {e}")
-            raise RuntimeError(f"Failed to connect to database: {e}") from e
+        async with db_manager._connection_lock:
+            # Double-check pattern to prevent race conditions
+            if db_manager.database is None:
+                try:
+                    await db_manager.connect()
+                except Exception as e:
+                    logger.error(f"Database connection failed in get_database(): {e}")
+                    print(f"❌ Database connection failed in get_database(): {e}")
+                    raise RuntimeError(f"Failed to connect to database: {e}") from e
     
     if db_manager.database is None:
         raise RuntimeError("Database connection is None after connection attempt")
@@ -137,6 +142,7 @@ async def get_user_db() -> AsyncGenerator[Any, None]:
                 try:
                     user_doc = await self.collection.find_one({"_id": id})
                     if user_doc:
+                        user_doc["id"] = str(user_doc.pop("_id"))
                         return User(**user_doc)
                     return None
                 except Exception as e:
@@ -148,6 +154,7 @@ async def get_user_db() -> AsyncGenerator[Any, None]:
                 try:
                     user_doc = await self.collection.find_one({"email": email})
                     if user_doc:
+                        user_doc["id"] = str(user_doc.pop("_id"))
                         return User(**user_doc)
                     return None
                 except Exception as e:
@@ -157,21 +164,43 @@ async def get_user_db() -> AsyncGenerator[Any, None]:
             async def create(self, create_dict: dict, safe: bool = True, request: Optional[Request] = None) -> User:
                 """Create a new user - compatible with FastAPI Users 12.x"""
                 try:
+                    logger.info(f"Creating user with data: {create_dict}")
+                    
+                    # Ensure we have a proper dictionary
+                    if not isinstance(create_dict, dict):
+                        if hasattr(create_dict, 'model_dump'):
+                            create_dict = create_dict.model_dump()
+                        elif hasattr(create_dict, 'dict'):
+                            create_dict = create_dict.dict()
+                        else:
+                            create_dict = dict(create_dict)
+                    
                     # Ensure the ID field is set correctly for MongoDB
                     if "id" in create_dict:
                         create_dict["_id"] = create_dict.pop("id")
                     
-                    result = await self.collection.insert_one(create_dict)
+                    # Validate required fields
+                    required_fields = ["email", "hashed_password"]
+                    for field in required_fields:
+                        if field not in create_dict:
+                            raise ValueError(f"Missing required field: {field}")
+                    
+                    # Make a copy to avoid modifying the original
+                    insert_dict = create_dict.copy()
+                    
+                    result = await self.collection.insert_one(insert_dict)
                     
                     # Retrieve the created user
                     user_doc = await self.collection.find_one({"_id": result.inserted_id})
                     if user_doc:
+                        user_doc["id"] = str(user_doc.pop("_id"))
                         return User(**user_doc)
                     else:
                         raise RuntimeError("Failed to retrieve created user")
+                        
                 except Exception as e:
                     logger.error(f"Error creating user: {e}")
-                    raise RuntimeError(f"Failed to create user: {e}") from e
+                    raise ValueError(f"User creation failed: {str(e)}")
             
             async def update(self, user: User, update_dict: dict) -> User:
                 """Update a user"""
@@ -188,6 +217,7 @@ async def get_user_db() -> AsyncGenerator[Any, None]:
                     # Retrieve updated user
                     user_doc = await self.collection.find_one({"_id": user.id})
                     if user_doc:
+                        user_doc["id"] = str(user_doc.pop("_id"))
                         return User(**user_doc)
                     else:
                         raise RuntimeError("Failed to retrieve updated user")

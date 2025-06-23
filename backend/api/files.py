@@ -13,11 +13,11 @@ from fastapi.concurrency import run_in_threadpool
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
 
-from backend.auth import current_active_user
-from backend.models.user import User
-from backend.core.database import get_database
-from backend.core.ratelimit import limiter, DEFAULT_RATE_LIMIT
-from backend.services.storage import (
+from auth import current_active_user
+from models.user import User
+from core.database import get_database
+from core.ratelimit import limiter, DEFAULT_RATE_LIMIT
+from services.storage import (
     get_minio_client, 
     StorageError, 
     sanitize_filename, 

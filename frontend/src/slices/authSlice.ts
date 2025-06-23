@@ -34,6 +34,8 @@ export const loginAsync = createAsyncThunk(
     'auth/login',
     async (credentials: { username: string; password: string }, { rejectWithValue }) => {
         try {
+            console.log('Attempting login with:', { username: credentials.username });
+
             const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/jwt/login`, {
                 method: 'POST',
                 headers: {
@@ -44,15 +46,19 @@ export const loginAsync = createAsyncThunk(
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.detail || 'Login failed');
+                console.error('Login error response:', errorData);
+                throw new Error(errorData.detail || `Login failed: ${response.status}`);
             }
 
             const data = await response.json();
+            console.log('Login successful, received token');
+
             return {
                 accessToken: data.access_token,
-                refreshToken: data.refresh_token,
+                refreshToken: data.refresh_token || null,
             };
         } catch (error) {
+            console.error('Login error:', error);
             return rejectWithValue(error instanceof Error ? error.message : 'Login failed');
         }
     }
@@ -120,30 +126,38 @@ const authSlice = createSlice({
             state.profile = null;
             state.status = 'idle';
             state.error = null;
-            // Clear localStorage
-            localStorage.removeItem('promptly_access_token');
-            localStorage.removeItem('promptly_refresh_token');
-            localStorage.removeItem('promptly_user_profile');
+            // Clear localStorage with error handling
+            try {
+                localStorage.removeItem('promptly_access_token');
+                localStorage.removeItem('promptly_refresh_token');
+                localStorage.removeItem('promptly_user_profile');
+            } catch (error) {
+                console.warn('Failed to clear localStorage:', error);
+            }
         },
 
         // Action to hydrate state from localStorage
         rehydrateAuth: (state) => {
-            const accessToken = localStorage.getItem('promptly_access_token');
-            const refreshToken = localStorage.getItem('promptly_refresh_token');
-            const profileData = localStorage.getItem('promptly_user_profile');
+            try {
+                const accessToken = localStorage.getItem('promptly_access_token');
+                const refreshToken = localStorage.getItem('promptly_refresh_token');
+                const profileData = localStorage.getItem('promptly_user_profile');
 
-            if (accessToken) {
-                state.accessToken = accessToken;
-            }
-            if (refreshToken) {
-                state.refreshToken = refreshToken;
-            }
-            if (profileData) {
-                try {
-                    state.profile = JSON.parse(profileData);
-                } catch {
-                    // Ignore invalid JSON
+                if (accessToken) {
+                    state.accessToken = accessToken;
                 }
+                if (refreshToken) {
+                    state.refreshToken = refreshToken;
+                }
+                if (profileData) {
+                    try {
+                        state.profile = JSON.parse(profileData);
+                    } catch (error) {
+                        console.warn('Failed to parse user profile from localStorage:', error);
+                    }
+                }
+            } catch (error) {
+                console.warn('Failed to rehydrate auth state from localStorage:', error);
             }
         },
 
@@ -165,9 +179,13 @@ const authSlice = createSlice({
                 state.refreshToken = action.payload.refreshToken;
                 state.error = null;
 
-                // Persist to localStorage
-                localStorage.setItem('promptly_access_token', action.payload.accessToken);
-                localStorage.setItem('promptly_refresh_token', action.payload.refreshToken);
+                // Persist to localStorage with error handling
+                try {
+                    localStorage.setItem('promptly_access_token', action.payload.accessToken);
+                    localStorage.setItem('promptly_refresh_token', action.payload.refreshToken);
+                } catch (error) {
+                    console.warn('Failed to save auth tokens to localStorage:', error);
+                }
             })
             .addCase(loginAsync.rejected, (state, action) => {
                 state.status = 'failed';

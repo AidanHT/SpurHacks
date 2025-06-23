@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, Routes, Route } from 'react-router-dom';
 import SessionsList from '../components/SessionsList';
+import SessionCreate from '../components/SessionCreate';
+import SessionDetail from '../components/SessionDetail';
 import { useAppDispatch, useAppSelector } from '../hooks/redux';
 import { logout } from '../slices/authSlice';
 import { useTheme } from '../providers/ThemeProvider';
@@ -222,16 +224,8 @@ export default function AppLayout() {
                   <SessionsList />
                 </div>
               } />
-              <Route path="sessions/new" element={
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-                    Create New Session
-                  </h2>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    Session creation form will be implemented here.
-                  </p>
-                </div>
-              } />
+              <Route path="sessions/new" element={<SessionCreate />} />
+              <Route path="sessions/:sessionId" element={<SessionDetail />} />
               <Route path="settings" element={
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
                   <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">

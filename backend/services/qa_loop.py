@@ -11,9 +11,9 @@ from typing import Dict, Any, List, Optional, Tuple
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorClientSession
 
-from backend.models.session import Session
-from backend.models.node import Node
-from backend.services.ai_internal import ask_gemini, GeminiServiceError
+from models.session import Session
+from models.node import Node
+from services.ai_internal import ask_gemini, GeminiServiceError
 
 logger = logging.getLogger(__name__)
 

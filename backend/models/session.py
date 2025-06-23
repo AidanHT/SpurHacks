@@ -4,23 +4,13 @@ Defines session data structure for AI prompt crafting sessions
 """
 
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, Annotated
+from typing import Optional, Dict, Any
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, BeforeValidator, field_validator
+from pydantic import BaseModel, Field, field_validator
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-
-def validate_object_id(v: Any) -> ObjectId:
-    """Validate and convert to ObjectId"""
-    if isinstance(v, ObjectId):
-        return v
-    if isinstance(v, str) and ObjectId.is_valid(v):
-        return ObjectId(v)
-    raise ValueError("Invalid ObjectId")
-
-
-PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
+from .types import PyObjectId
 
 
 class Session(BaseModel):

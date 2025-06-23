@@ -1,17 +1,16 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
-// Node type - simplified for now
+// Node type matching backend NodeRead model
 export interface Node {
     id: string;
     session_id: string;
-    question: string;
-    answer?: string;
     parent_id?: string;
-    children: string[];
-    position?: { x: number; y: number };
+    role: string;
+    content: string;
+    type?: string;
+    extra?: Record<string, any>;
     created_at: string;
-    updated_at: string;
 }
 
 export interface NodesState {

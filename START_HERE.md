@@ -33,7 +33,7 @@ cd SpurHacks
 python run_docker.py prod
 
 # Access the application
-# Frontend: http://localhost:3000
+# Frontend: http://localhost:5173
 # Backend API: http://localhost:8000
 # API Docs: http://localhost:8000/docs
 # MinIO Console: http://localhost:9001
@@ -151,7 +151,7 @@ JWT_SECRET_KEY=development-secret-key
 GEMINI_API_KEY=your-api-key-here
 
 # CORS
-CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+CORS_ORIGINS=http://localhost:5173,http://localhost:5174
 ```
 
 ## 🧪 Testing the Application
@@ -163,7 +163,7 @@ CORS_ORIGINS=http://localhost:5173,http://localhost:3000
    ```
 
 2. **Frontend Access**:
-   - Open http://localhost:5173 (dev) or http://localhost:3000 (prod)
+   - Open http://localhost:5173 (dev) or http://localhost:5173 (prod)
    - Should see the Promptly landing page
 
 3. **API Documentation**:

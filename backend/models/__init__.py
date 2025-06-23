@@ -3,8 +3,9 @@ Models package for Promptly backend
 Contains data models and schemas
 """
 
-# Re-export ObjectId for consistency across models
+# Re-export ObjectId and shared types for consistency across models
 from bson import ObjectId
+from .types import PyObjectId
 
 # User models
 from .user import (
@@ -23,7 +24,6 @@ from .session import (
     SessionCreate,
     SessionUpdate,
     SessionRead,
-    PyObjectId as SessionObjectId,
     ensure_session_indexes
 )
 
@@ -33,12 +33,8 @@ from .node import (
     NodeCreate,
     NodeUpdate,
     NodeRead,
-    PyObjectId as NodeObjectId,
     ensure_node_indexes
 )
-
-# Shared ObjectId type (use the one from session/node models)
-PyObjectId = SessionObjectId
 
 # Model initialization function
 async def init_models(db):

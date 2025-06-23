@@ -4,23 +4,13 @@ Defines node data structure for prompt decision trees
 """
 
 from datetime import datetime, timezone
-from typing import Optional, Annotated, Any, Dict
+from typing import Optional, Dict, Any
 
 from bson import ObjectId
-from pydantic import BaseModel, Field, BeforeValidator
+from pydantic import BaseModel, Field
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-
-def validate_object_id(v: Any) -> ObjectId:
-    """Validate and convert to ObjectId"""
-    if isinstance(v, ObjectId):
-        return v
-    if isinstance(v, str) and ObjectId.is_valid(v):
-        return ObjectId(v)
-    raise ValueError("Invalid ObjectId")
-
-
-PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
+from .types import PyObjectId
 
 
 class Node(BaseModel):

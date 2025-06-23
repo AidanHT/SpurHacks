@@ -15,12 +15,12 @@ from bson.errors import InvalidId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
-from backend.auth import current_active_user
-from backend.models.user import User
-from backend.models.session import Session, SessionCreate, SessionRead
-from backend.core.database import get_database
-from backend.core.ratelimit import limiter, DEFAULT_RATE_LIMIT
-from backend.services.qa_loop import (
+from auth import current_active_user
+from models.user import User
+from models.session import Session, SessionCreate, SessionRead
+from core.database import get_database
+from core.ratelimit import limiter, DEFAULT_RATE_LIMIT
+from services.qa_loop import (
     QALoopError,
     get_session_with_validation,
     validate_node_ownership,
@@ -32,7 +32,7 @@ from backend.services.qa_loop import (
     insert_ai_node,
     update_session_status
 )
-from backend.services.ai_internal import ask_gemini, GeminiServiceError
+from services.ai_internal import ask_gemini, GeminiServiceError
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 logger = logging.getLogger(__name__)
@@ -521,4 +521,71 @@ async def list_sessions(
     sessions = await cursor.to_list(length=None)
     
     # Convert to response models
-    return [SessionRead(**session) for session in sessions] 
+    return [SessionRead(**session) for session in sessions]
+
+
+@router.get(
+    "/{session_id}/nodes",
+    response_model=List[Dict[str, Any]],
+    summary="Get session nodes",
+    description="Get all nodes for a specific session, ordered by creation time"
+)
+@limiter.limit(DEFAULT_RATE_LIMIT)
+async def get_session_nodes(
+    request: Request,
+    session_id: str,
+    current_user: User = Depends(current_active_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Get all nodes for a specific session.
+    
+    **Path Parameters:**
+    - **session_id**: MongoDB ObjectId of the session
+    
+    **Response:**
+    - **200**: List of nodes
+    - **401**: Authentication required
+    - **403**: Access denied
+    - **404**: Session not found
+    - **422**: Invalid ID format
+    - **429**: Rate limit exceeded
+    """
+    # Validate ObjectId format
+    try:
+        session_object_id = ObjectId(session_id)
+    except InvalidId:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid session ID format"
+        )
+    
+    # Verify session exists and belongs to user
+    session_collection = db["sessions"]
+    session_doc = await session_collection.find_one({
+        "_id": session_object_id,
+        "user_id": ObjectId(current_user.id)
+    })
+    
+    if not session_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found or access denied"
+        )
+    
+    # Get all nodes for the session
+    nodes_collection = db["nodes"]
+    cursor = nodes_collection.find(
+        {"session_id": session_object_id}
+    ).sort("created_at", 1)
+    
+    nodes = await cursor.to_list(length=None)
+    
+    # Convert ObjectId to string for JSON serialization
+    for node in nodes:
+        node["id"] = str(node.pop("_id"))
+        node["session_id"] = str(node["session_id"])
+        if node.get("parent_id"):
+            node["parent_id"] = str(node["parent_id"])
+    
+    return nodes 

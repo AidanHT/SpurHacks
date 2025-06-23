@@ -716,7 +716,7 @@ MINIO_SECURE=false
 MINIO_URL_EXPIRY_HOURS=24
 
 # Application
-CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+CORS_ORIGINS=http://localhost:5173,http://localhost:5174
 ENVIRONMENT=development
 DEBUG=true
 ```
